@@ -156,19 +156,19 @@ fn parse_type_ref(value : Json, location : String) -> TypeRef raise {
       if !is_known_scalar(name) {
         raise Failure(location + ": unsupported scalar " + name.escape())
       }
-      { kind, name: Some(name), item: None }
+      { kind, name: Some(name), item: None, }
     }
     "named" => {
       let name = require_string_field(fields, "name", location)
       if name.length() == 0 {
         raise Failure(location + ": named type name must not be empty")
       }
-      { kind, name: Some(name), item: None }
+      { kind, name: Some(name), item: None, }
     }
     "array" => {
       let item_value = require_field(fields, "item", location)
       let item = parse_type_ref(item_value, location + ".item")
-      { kind, name: None, item: Some(item) }
+      { kind, name: None, item: Some(item), }
     }
     _ => raise Failure(location + ": unsupported type kind " + kind.escape())
   }
@@ -258,7 +258,7 @@ fn parse_enum(
     taken_wires[enum_member.wire] = true
     members.push(enum_member)
   }
-  { name, members }
+  { name, members, }
 }
 
 ///|
@@ -398,5 +398,5 @@ pub fn parse_api(value : Json) -> ApiIr raise {
   for model in models {
     validate_model_references(model, model_names)
   }
-  { module_name, models }
+  { module_name, models, }
 }
