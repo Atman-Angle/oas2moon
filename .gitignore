@@ -44,3 +44,7 @@ credentials.*
 .vscode/
 .DS_Store
 Thumbs.db
+# Phase 2 codegen emitter
+src/codegen_moonbit/_build/
+src/codegen_moonbit/.mooncakes/
+src/codegen_moonbit/spike/build/

@@ -1,4 +1,4 @@
-name: phase1-ubuntu
+name: phase2-ubuntu
 
 on:
   push:
@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 jobs:
-  frontend-ir:
+  model-codegen:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,23 +22,39 @@ jobs:
         run: |
           curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
-      - name: Update MoonBit registry
-        run: moon update
       - name: Verify toolchain
         run: |
           moon --version
           python --version
           pytest --version
-      - name: Run formal frontend and IR tests
-        run: pytest -q tests
+
+      - name: Update MoonBit registry for frontend adapter
+        working-directory: src/frontend_adapter
+        run: moon update
       - name: Check formal MoonBit adapter
         working-directory: src/frontend_adapter
         run: |
           moon fmt --check
           moon check --target native --deny-warn
+
+      - name: Update MoonBit registry for core authority
+        working-directory: src/core_moonbit
+        run: moon update
       - name: Check MoonBit core authority
         working-directory: src/core_moonbit
         run: |
           moon fmt --check
           moon check --target native --deny-warn
           moon test --target native --deny-warn
+
+      - name: Update MoonBit registry for codegen emitter
+        working-directory: src/codegen_moonbit
+        run: moon update
+      - name: Check codegen emitter
+        working-directory: src/codegen_moonbit
+        run: |
+          moon fmt --check
+          moon check --target native --deny-warn
+
+      - name: Run all tests (Phase 1, 1.5, 2)
+        run: pytest -q tests
