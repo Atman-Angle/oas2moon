@@ -1,7 +1,7 @@
 # Phase 1.5 Report — MoonBit Core Authority
 
 Date: 2026-09-13
-Verdict: CONDITIONAL_GO
+Verdict: GO
 
 ## Migrated modules
 
@@ -82,10 +82,34 @@ constraint. No fatal blocker was observed for the current Windows environment.
 
 ## Ubuntu CI result
 
-Not verified in this environment. `.github/workflows/phase1-ubuntu.yml` contains
-MoonBit fmt/check steps and the Python test job, but no completed hosted CI run
-is available as evidence. Workflow presence is therefore not counted as an
-Ubuntu PASS.
+PASS on GitHub Actions hosted Ubuntu.
+
+- GitHub repository: https://github.com/Atman-Angle/oas2moon
+- Tested commit: `7f2a1a01124971413157ab5bd8977357fd5f97ac`
+- Workflow: `phase1-ubuntu`
+- Run: [34739244780](https://github.com/Atman-Angle/oas2moon/actions/runs/34739244780) — `success`
+- Runner: `ubuntu-latest` (`ubuntu-24.04`, image release `20260907.300`)
+- Python: `3.12.14`
+- MoonBit CLI: `0.1.20260904 (94521db 2026-09-04)`
+
+The workflow ran these verification commands exactly:
+
+```text
+pytest -q tests
+
+# src/frontend_adapter
+moon fmt --check
+moon check --target native --deny-warn
+
+# src/core_moonbit
+moon fmt --check
+moon check --target native --deny-warn
+moon test --target native --deny-warn
+```
+
+Results: `pytest` reported `9 passed`; both MoonBit packages passed
+format/check; the core reported `Total tests: 5, passed: 5, failed: 0`.
+Hosted CI therefore counts as PASS.
 
 ## Remaining semantic differences / risks
 
@@ -98,11 +122,9 @@ current Phase 1 cases should receive additional tests before Phase 2.
 
 ## Final verdict
 
-**CONDITIONAL_GO**. The production path no longer depends on Python semantics,
-strict covered differential parity is green (`0` failures), real MoonBit core
-tests pass, Windows passes, and the full spike remains green. The verdict stays
-conditional solely because Ubuntu CI has not actually executed successfully in
-this environment and broader-than-covered collision/diagnostic corpus evidence
-is still outstanding.
+**GO**. The production path no longer depends on Python semantics, strict covered
+differential parity is green (`0` failures), real MoonBit core tests pass,
+Windows passes, the full spike remains green, and hosted Ubuntu CI has passed.
+Phase 1.5's final `CONDITIONAL_GO` condition is closed.
 
 Phase 2 was not started.
