@@ -3,7 +3,7 @@
   Run one generated MoonBit SDK package against the spike fixture server.
 
 .DESCRIPTION
-  Starts spike/server/fixture_server.py on 127.0.0.1, runs the given MoonBit
+  Starts tools/fixture_server.py on 127.0.0.1, runs the given MoonBit
   package with `moon run`, stops the server and prints both the client report
   and the server-side capture. Exits non-zero when the server recorded any
   wire-level mismatch.
@@ -46,7 +46,7 @@ $capture = Join-Path $outPath 'capture.json'
 $clientReport = Join-Path $outPath 'client_report.json'
 $serverOut = Join-Path $outPath 'server_stdout.log'
 $serverErr = Join-Path $outPath 'server_stderr.log'
-$serverScript = Join-Path $repoRoot 'spike/server/fixture_server.py'
+$serverScript = Join-Path $repoRoot 'tools/fixture_server.py'
 
 foreach ($path in @($capture, $clientReport, $serverOut, $serverErr)) {
   if (Test-Path -LiteralPath $path) {
