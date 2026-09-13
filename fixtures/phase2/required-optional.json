@@ -1,0 +1,62 @@
+{
+  "module": "oas2moon/phase2_req_opt",
+  "title": "RequiredOptional",
+  "version": "1.0.0",
+  "servers": [],
+  "auth_schemes": [],
+  "models": [
+    {
+      "kind": "struct",
+      "name": "ReqOpt",
+      "additional_properties": false,
+      "additional_properties_field": null,
+      "fields": [
+        {
+          "name": "id",
+          "wire_name": "id",
+          "type": {
+            "kind": "scalar",
+            "name": "Int"
+          },
+          "required": true,
+          "nullable": false,
+          "presence": "required"
+        },
+        {
+          "name": "name",
+          "wire_name": "name",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          },
+          "required": true,
+          "nullable": false,
+          "presence": "required"
+        },
+        {
+          "name": "label",
+          "wire_name": "label",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          },
+          "required": false,
+          "nullable": false,
+          "presence": "optional"
+        },
+        {
+          "name": "count",
+          "wire_name": "count",
+          "type": {
+            "kind": "scalar",
+            "name": "Int"
+          },
+          "required": false,
+          "nullable": false,
+          "presence": "optional"
+        }
+      ]
+    }
+  ],
+  "operations": []
+}

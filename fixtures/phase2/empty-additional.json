@@ -1,0 +1,24 @@
+{
+  "module": "oas2moon/phase2_empty_additional",
+  "title": "EmptyAdditional",
+  "version": "1.0.0",
+  "servers": [],
+  "auth_schemes": [],
+  "models": [
+    {
+      "kind": "struct",
+      "name": "OpenEnded",
+      "additional_properties": true,
+      "additional_properties_field": "additional",
+      "fields": []
+    },
+    {
+      "kind": "struct",
+      "name": "Closed",
+      "additional_properties": false,
+      "additional_properties_field": null,
+      "fields": []
+    }
+  ],
+  "operations": []
+}

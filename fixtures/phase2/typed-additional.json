@@ -1,0 +1,29 @@
+{
+  "module": "oas2moon/phase2_typed_additional",
+  "title": "TypedAdditional",
+  "version": "1.0.0",
+  "servers": [],
+  "auth_schemes": [],
+  "models": [
+    {
+      "kind": "struct",
+      "name": "TypedAdditional",
+      "additional_properties": true,
+      "additional_properties_field": "metadata",
+      "fields": [
+        {
+          "name": "name",
+          "wire_name": "name",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          },
+          "required": true,
+          "nullable": false,
+          "presence": "required"
+        }
+      ]
+    }
+  ],
+  "operations": []
+}

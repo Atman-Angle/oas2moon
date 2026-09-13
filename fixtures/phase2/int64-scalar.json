@@ -1,0 +1,40 @@
+{
+  "module": "oas2moon/phase2_int64_scalar",
+  "title": "Int64Scalar",
+  "version": "1.0.0",
+  "servers": [],
+  "auth_schemes": [],
+  "models": [
+    {
+      "kind": "struct",
+      "name": "Int64Model",
+      "additional_properties": false,
+      "additional_properties_field": null,
+      "fields": [
+        {
+          "name": "id",
+          "wire_name": "id",
+          "type": {
+            "kind": "scalar",
+            "name": "Int64"
+          },
+          "required": true,
+          "nullable": false,
+          "presence": "required"
+        },
+        {
+          "name": "name",
+          "wire_name": "name",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          },
+          "required": true,
+          "nullable": false,
+          "presence": "required"
+        }
+      ]
+    }
+  ],
+  "operations": []
+}

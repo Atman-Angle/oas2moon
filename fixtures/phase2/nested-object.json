@@ -1,0 +1,70 @@
+{
+  "module": "oas2moon/phase2_nested_object",
+  "title": "NestedObject",
+  "version": "1.0.0",
+  "servers": [],
+  "auth_schemes": [],
+  "models": [
+    {
+      "kind": "struct",
+      "name": "Address",
+      "additional_properties": false,
+      "additional_properties_field": null,
+      "fields": [
+        {
+          "name": "street",
+          "wire_name": "street",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          },
+          "required": true,
+          "nullable": false,
+          "presence": "required"
+        },
+        {
+          "name": "city",
+          "wire_name": "city",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          },
+          "required": true,
+          "nullable": false,
+          "presence": "required"
+        }
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "Person",
+      "additional_properties": false,
+      "additional_properties_field": null,
+      "fields": [
+        {
+          "name": "name",
+          "wire_name": "name",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          },
+          "required": true,
+          "nullable": false,
+          "presence": "required"
+        },
+        {
+          "name": "address",
+          "wire_name": "address",
+          "type": {
+            "kind": "named",
+            "name": "Address"
+          },
+          "required": true,
+          "nullable": false,
+          "presence": "required"
+        }
+      ]
+    }
+  ],
+  "operations": []
+}

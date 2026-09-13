@@ -1,0 +1,32 @@
+{
+  "module": "oas2moon/phase2_array_int64",
+  "title": "ArrayInt64",
+  "version": "1.0.0",
+  "servers": [],
+  "auth_schemes": [],
+  "models": [
+    {
+      "kind": "struct",
+      "name": "ArrayInt64",
+      "additional_properties": false,
+      "additional_properties_field": null,
+      "fields": [
+        {
+          "name": "values",
+          "wire_name": "values",
+          "type": {
+            "kind": "array",
+            "item": {
+              "kind": "scalar",
+              "name": "Int64"
+            }
+          },
+          "required": true,
+          "nullable": false,
+          "presence": "required"
+        }
+      ]
+    }
+  ],
+  "operations": []
+}

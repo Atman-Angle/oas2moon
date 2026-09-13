@@ -1,0 +1,84 @@
+{
+  "module": "oas2moon/phase2_naming",
+  "title": "Naming",
+  "version": "1.0.0",
+  "servers": [],
+  "auth_schemes": [],
+  "models": [
+    {
+      "kind": "enum",
+      "name": "Status",
+      "members": [
+        [
+          "InProgress",
+          "in-progress"
+        ],
+        [
+          "ClassValue",
+          "class"
+        ],
+        [
+          "TypeValue",
+          "type"
+        ],
+        [
+          "Loop",
+          "loop"
+        ]
+      ]
+    },
+    {
+      "kind": "struct",
+      "name": "CollisionModel",
+      "additional_properties": false,
+      "additional_properties_field": null,
+      "fields": [
+        {
+          "name": "class_",
+          "wire_name": "class",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          },
+          "required": true,
+          "nullable": false,
+          "presence": "required"
+        },
+        {
+          "name": "type_",
+          "wire_name": "type",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          },
+          "required": true,
+          "nullable": false,
+          "presence": "required"
+        },
+        {
+          "name": "loop",
+          "wire_name": "loop",
+          "type": {
+            "kind": "scalar",
+            "name": "Bool"
+          },
+          "required": true,
+          "nullable": false,
+          "presence": "required"
+        },
+        {
+          "name": "status",
+          "wire_name": "status",
+          "type": {
+            "kind": "named",
+            "name": "Status"
+          },
+          "required": true,
+          "nullable": false,
+          "presence": "required"
+        }
+      ]
+    }
+  ],
+  "operations": []
+}

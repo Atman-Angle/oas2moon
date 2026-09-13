@@ -1,0 +1,63 @@
+{
+  "module": "oas2moon/phase2_array",
+  "title": "Array",
+  "version": "1.0.0",
+  "servers": [],
+  "auth_schemes": [],
+  "models": [
+    {
+      "kind": "struct",
+      "name": "ArrayFields",
+      "additional_properties": false,
+      "additional_properties_field": null,
+      "fields": [
+        {
+          "name": "tags",
+          "wire_name": "tags",
+          "type": {
+            "kind": "array",
+            "item": {
+              "kind": "scalar",
+              "name": "String"
+            }
+          },
+          "required": true,
+          "nullable": false,
+          "presence": "required"
+        },
+        {
+          "name": "scores",
+          "wire_name": "scores",
+          "type": {
+            "kind": "array",
+            "item": {
+              "kind": "scalar",
+              "name": "Int"
+            }
+          },
+          "required": false,
+          "nullable": false,
+          "presence": "optional"
+        },
+        {
+          "name": "matrix",
+          "wire_name": "matrix",
+          "type": {
+            "kind": "array",
+            "item": {
+              "kind": "array",
+              "item": {
+                "kind": "scalar",
+                "name": "Double"
+              }
+            }
+          },
+          "required": false,
+          "nullable": false,
+          "presence": "optional"
+        }
+      ]
+    }
+  ],
+  "operations": []
+}

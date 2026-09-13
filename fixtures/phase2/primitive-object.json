@@ -1,0 +1,62 @@
+{
+  "module": "oas2moon/phase2_primitive_object",
+  "title": "PrimitiveObject",
+  "version": "1.0.0",
+  "servers": [],
+  "auth_schemes": [],
+  "models": [
+    {
+      "kind": "struct",
+      "name": "PrimitiveObject",
+      "additional_properties": false,
+      "additional_properties_field": null,
+      "fields": [
+        {
+          "name": "name",
+          "wire_name": "name",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          },
+          "required": true,
+          "nullable": false,
+          "presence": "required"
+        },
+        {
+          "name": "active",
+          "wire_name": "active",
+          "type": {
+            "kind": "scalar",
+            "name": "Bool"
+          },
+          "required": true,
+          "nullable": false,
+          "presence": "required"
+        },
+        {
+          "name": "count",
+          "wire_name": "count",
+          "type": {
+            "kind": "scalar",
+            "name": "Int"
+          },
+          "required": false,
+          "nullable": false,
+          "presence": "optional"
+        },
+        {
+          "name": "score",
+          "wire_name": "score",
+          "type": {
+            "kind": "scalar",
+            "name": "Double"
+          },
+          "required": false,
+          "nullable": false,
+          "presence": "optional"
+        }
+      ]
+    }
+  ],
+  "operations": []
+}

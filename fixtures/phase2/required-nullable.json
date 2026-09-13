@@ -1,0 +1,40 @@
+{
+  "module": "oas2moon/phase2_req_nullable",
+  "title": "RequiredNullable",
+  "version": "1.0.0",
+  "servers": [],
+  "auth_schemes": [],
+  "models": [
+    {
+      "kind": "struct",
+      "name": "ReqNullable",
+      "additional_properties": false,
+      "additional_properties_field": null,
+      "fields": [
+        {
+          "name": "id",
+          "wire_name": "id",
+          "type": {
+            "kind": "scalar",
+            "name": "Int"
+          },
+          "required": true,
+          "nullable": false,
+          "presence": "required"
+        },
+        {
+          "name": "comment",
+          "wire_name": "comment",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          },
+          "required": true,
+          "nullable": true,
+          "presence": "required_nullable"
+        }
+      ]
+    }
+  ],
+  "operations": []
+}

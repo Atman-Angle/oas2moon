@@ -1,0 +1,51 @@
+{
+  "module": "oas2moon/phase2_opt_nullable",
+  "title": "OptionalNullable",
+  "version": "1.0.0",
+  "servers": [],
+  "auth_schemes": [],
+  "models": [
+    {
+      "kind": "struct",
+      "name": "OptNullable",
+      "additional_properties": false,
+      "additional_properties_field": null,
+      "fields": [
+        {
+          "name": "id",
+          "wire_name": "id",
+          "type": {
+            "kind": "scalar",
+            "name": "Int"
+          },
+          "required": true,
+          "nullable": false,
+          "presence": "required"
+        },
+        {
+          "name": "nickname",
+          "wire_name": "nickname",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          },
+          "required": false,
+          "nullable": true,
+          "presence": "optional_nullable"
+        },
+        {
+          "name": "tag",
+          "wire_name": "tag",
+          "type": {
+            "kind": "scalar",
+            "name": "String"
+          },
+          "required": false,
+          "nullable": false,
+          "presence": "optional"
+        }
+      ]
+    }
+  ],
+  "operations": []
+}

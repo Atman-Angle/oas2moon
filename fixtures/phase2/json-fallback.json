@@ -1,0 +1,40 @@
+{
+  "module": "oas2moon/phase2_json_fallback",
+  "title": "JsonFallback",
+  "version": "1.0.0",
+  "servers": [],
+  "auth_schemes": [],
+  "models": [
+    {
+      "kind": "struct",
+      "name": "JsonFallback",
+      "additional_properties": false,
+      "additional_properties_field": null,
+      "fields": [
+        {
+          "name": "id",
+          "wire_name": "id",
+          "type": {
+            "kind": "scalar",
+            "name": "Int"
+          },
+          "required": true,
+          "nullable": false,
+          "presence": "required"
+        },
+        {
+          "name": "data",
+          "wire_name": "data",
+          "type": {
+            "kind": "scalar",
+            "name": "Json"
+          },
+          "required": false,
+          "nullable": false,
+          "presence": "optional"
+        }
+      ]
+    }
+  ],
+  "operations": []
+}
