@@ -321,7 +321,24 @@ tests/test_phase2.py .                                                   [100%]
 
 ## 9. Ubuntu CI Result
 
-(TBD — Requires CI run on Ubuntu. The test driver is pure Python with subprocess calls to moon, which is cross-platform. No Windows-specific APIs are used. The fixture generation uses only stdlib json, os, hashlib, and subprocess.)
+**Status: PASS**
+
+| Field | Value |
+|---|---|
+| **CI Workflow** | phase2-ubuntu |
+| **Run URL** | https://github.com/Atman-Angle/oas2moon/actions/runs/34748149239 |
+| **Runner** | ubuntu-24.04 (Hosted) |
+| **MoonBit version** | 0.1.20260904 (94521db 2026-09-04) |
+| **Test result** | 10 passed in 19.27s |
+
+All steps passed:
+
+1. **Check formal MoonBit adapter** — moon fmt --check, moon check --deny-warn: PASS
+2. **Check MoonBit core authority** — moon fmt/check/test: PASS (5 tests, 0 failed)
+3. **Check codegen emitter** — moon fmt --check, moon check --deny-warn: PASS
+4. **Run all tests (Phase 1, 1.5, 2)** — pytest -q tests: 10 passed in 19.27s
+
+No regressions from Phase 1 / Phase 1.5 on Ubuntu.
 
 ---
 
@@ -337,22 +354,33 @@ tests/test_phase2.py .                                                   [100%]
 
 ---
 
-## 11. Final Verdict
+## 11. Final Repository-Level Verdict
 
 **Verdict: GO**
 
+**Repository closure metadata:**
+
+| Field | Value |
+|---|---|
+| **Final commit SHA** | 5531c42 |
+| **CI workflow** | phase2-ubuntu (GitHub Actions) |
+| **Ubuntu runner** | ubuntu-24.04, MoonBit 0.1.20260904 |
+| **Windows environment** | Windows (PowerShell 7), MoonBit 0.1.20260819 |
+| **Total meaningful commits** | 9 |
+
 All Phase 2 acceptance criteria are met:
 
-| Criterion | Status |
-|---|---|
-| Canonical IR → generated MoonBit models | ✅ |
-| moon fmt --check | ✅ |
-| moon check --deny-warn | ✅ |
-| Model tests (round-trip JSON decode/encode) | ✅ |
-| Invalid-input tests (missing required, wrong type, bad enum) | ✅ |
-| Deterministic regeneration (same file list + bytes) | ✅ |
-| Windows test pass | ✅ |
-| No regression in Phase 1 / Phase 1.5 | ✅ |
-| 14 targeted fixtures covering all required surfaces | ✅ |
+| Criterion | Status | Evidence |
+|---|---|---|
+| Canonical IR → generated MoonBit models | ✅ | 14 fixtures generate compilable MoonBit packages |
+| moon fmt --check | ✅ | All 14 fixtures pass on Windows + Ubuntu CI |
+| moon check --deny-warn | ✅ | All 14 fixtures pass on Windows + Ubuntu CI |
+| Model tests (round-trip JSON decode/encode) | ✅ | All 14 fixtures pass moon test --deny-warn |
+| Invalid-input tests (missing required, wrong type, bad enum) | ✅ | All invalid inputs correctly raise JsonDecodeError |
+| Deterministic regeneration (same file list + bytes) | ✅ | Verified via SHA-256 comparison of both generations |
+| Windows test pass (10/10) | ✅ | pytest -q tests: 10 passed in 23.08s |
+| Ubuntu hosted CI pass (10/10) | ✅ | pytest -q tests: 10 passed in 19.27s |
+| No regression in Phase 1 / Phase 1.5 | ✅ | Phase 1 (7 tests) + Phase 1.5 (2 tests) + Phase 2 (1 test) = 10 pass |
+| 14 targeted fixtures covering all required surfaces | ✅ | primitive, nested, array, enum, required/optional, nullable, int64, naming, additionalProperties, Json fallback |
 
 **Do not enter Phase 3 (operation emitter) until explicitly authorized.**
