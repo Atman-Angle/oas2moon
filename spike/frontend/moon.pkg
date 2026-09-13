@@ -1,0 +1,12 @@
+import {
+  "Han-Wentao/mooncontract/src/openapi",
+  "moonbit-community/yaml",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/x/fs",
+  "moonbitlang/x/sys",
+}
+
+supported_targets = "+native"
+
+pkgtype(kind: "executable")

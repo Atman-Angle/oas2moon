@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# MoonBit
+_build/
+.mooncakes/
+target/
+
+# Generated spike output and local dependencies
+.spike-scratch/
+.spike-deps/
+/spike/build/
+/out1/
+/out2/
+
+# Temporary files and logs
+*.log
+*.tmp
+*.temp
+*.pid
+*.copy
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.*
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

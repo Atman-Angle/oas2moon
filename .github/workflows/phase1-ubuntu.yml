@@ -1,0 +1,42 @@
+name: phase1-ubuntu
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-ir:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Python test dependency
+        run: python -m pip install --disable-pip-version-check pytest
+      - name: Install MoonBit CLI
+        shell: bash
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+      - name: Verify toolchain
+        run: |
+          moon --version
+          python --version
+          pytest --version
+      - name: Run formal frontend and IR tests
+        run: pytest -q tests
+      - name: Check formal MoonBit adapter
+        working-directory: src/frontend_adapter
+        run: |
+          moon fmt --check
+          moon check --target native --deny-warn
+      - name: Check MoonBit core authority
+        working-directory: src/core_moonbit
+        run: |
+          moon fmt --check
+          moon check --target native --deny-warn
+          moon test --target native --deny-warn

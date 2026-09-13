@@ -1,0 +1,6 @@
+import {
+  "oas2moon_spike/petstore/runtime",
+  "moonbitlang/core/json",
+}
+
+supported_targets = "+native"

@@ -1,0 +1,12 @@
+import {
+  "oas2moon_spike/petstore/sdk",
+  "oas2moon_spike/petstore/runtime",
+  "moonbitlang/async",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+supported_targets = "+native"
+
+pkgtype(kind: "executable")

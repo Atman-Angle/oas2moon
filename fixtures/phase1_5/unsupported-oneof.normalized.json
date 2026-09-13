@@ -1,0 +1,65 @@
+{
+  "frontendModelVersion": 1,
+  "openapi": "3.0.3",
+  "title": "Unsupported Spike",
+  "servers": [
+    "http://127.0.0.1:18080"
+  ],
+  "securitySchemes": {},
+  "security": [],
+  "operations": [
+    {
+      "operationId": "getChoice",
+      "method": "GET",
+      "path": "/choice",
+      "security": [],
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        {
+          "status": "200",
+          "description": "ok",
+          "media_type": "application/json",
+          "schema": {
+            "kind": "any",
+            "ref": "#/components/schemas/Choice",
+            "format": null,
+            "nullable": false,
+            "required": [],
+            "properties": {},
+            "items": null,
+            "enum": [],
+            "additionalProperties": true
+          }
+        }
+      ]
+    }
+  ],
+  "schemas": {
+    "Choice": {
+      "kind": "any",
+      "ref": null,
+      "format": null,
+      "nullable": false,
+      "required": [],
+      "properties": {},
+      "items": null,
+      "enum": [],
+      "additionalProperties": true
+    }
+  },
+  "issues": [
+    {
+      "pointer": "#/components/schemas/Choice/oneOf",
+      "keyword": "oneOf",
+      "value": null
+    }
+  ],
+  "ignored": [
+    {
+      "pointer": "#/components/schemas/Choice/oneOf",
+      "keyword": "oneOf",
+      "value": null
+    }
+  ]
+}
