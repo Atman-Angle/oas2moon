@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "tests" / "reference_python"))
 
 from oas2moon import frontend, lower, naming, support
 
@@ -14,7 +14,7 @@ def adapter_fixture(tmp_path: Path, fixture: str = "fixtures/petstore/openapi.js
     # moonbitlang/x/fs on this Windows host cannot open non-ASCII path
     # components. pytest's temp directory inherits the Chinese user profile,
     # so keep adapter I/O in an ASCII workspace path and use a unique stem.
-    safe_root = ROOT / "spike" / "build" / "formal-tests"
+    safe_root = ROOT / "tests" / "_build" / "formal-tests"
     safe_root.mkdir(parents=True, exist_ok=True)
     stem = f"{os.getpid()}-{fixture.replace('/', '_').replace('\\', '_').replace('.', '_')}"
     out = safe_root / f"{stem}.normalized.json"

@@ -4,12 +4,12 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "tests" / "reference_python"))
 
 from oas2moon import pipeline
 
 FIXTURES = ROOT / "fixtures" / "phase1_5"
-OUTPUT_ROOT = ROOT / "spike" / "build" / "formal-tests"
+OUTPUT_ROOT = ROOT / "tests" / "_build" / "formal-tests"
 BASE = FIXTURES / "petstore.normalized.json"
 
 

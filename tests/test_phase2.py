@@ -6,10 +6,10 @@ import hashlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+# sys.path moved to tests/reference_python
 
 FIXTURES_DIR = ROOT / "fixtures" / "phase2"
-OUTPUT_ROOT = ROOT / "spike" / "build" / "phase2-tests"
+OUTPUT_ROOT = ROOT / "tests" / "_build" / "phase2-tests"
 CODEGEN_DIR = ROOT / "src" / "codegen_moonbit"
 
 SKIP_CHECK = os.environ.get("SKIP_MOON_CHECK", "0") == "1"
