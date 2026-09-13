@@ -80,13 +80,21 @@ def _struct_model(name: str, schema: Schema, resolve) -> StructIr:
         )
     # MoonBit requires optional arguments to follow required ones and the
     # generated constructor mirrors the field order, so required properties are
-    # grouped first while each group keeps its document order.
-    fields = [field for field in declared if not field.optional]
-    fields += [field for field in declared if field.optional]
+    # grouped first while each group keeps its document order. A required
+    # nullable field is still required; only its value type is optional.
+    fields = [field for field in declared if field.presence in ("required", "required_nullable")]
+    fields += [field for field in declared if field.presence not in ("required", "required_nullable")]
+    additional_field = (
+        naming.unique("additional_properties", taken)
+        if schema.additional_properties
+        else None
+    )
     return StructIr(
         name=name,
         description=f"Generated model for `{name}`.",
         fields=tuple(fields),
+        additional_properties=schema.additional_properties,
+        additional_properties_field=additional_field,
     )
 
 
@@ -129,9 +137,11 @@ def _operation(
         )
 
     # MoonBit requires optional arguments to follow required ones, so required
-    # parameters keep their document order and optional ones are appended.
-    ordered = [entry for entry, _ in resolved if not entry.optional]
-    ordered += [entry for entry, _ in resolved if entry.optional]
+    # parameters keep their document order and optional ones are appended. A
+    # required nullable parameter is still required.
+    required_presence = ("required", "required_nullable")
+    ordered = [entry for entry, _ in resolved if entry.presence in required_presence]
+    ordered += [entry for entry, _ in resolved if entry.presence not in required_presence]
 
     body_type = None
     body_name = None

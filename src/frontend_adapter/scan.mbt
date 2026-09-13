@@ -20,17 +20,24 @@ let unsupported_keywords : Array[String] = [
 let ignored_keywords : Array[String] = [
   "default", "example", "examples", "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum",
   "minLength", "maxLength", "pattern", "minItems", "maxItems", "uniqueItems", "readOnly",
-  "writeOnly", "deprecated",
+  "writeOnly", "deprecated", "additionalProperties",
 ]
 
 ///|
 /// Scalar rendering of a keyword value, when it has one.
-fn keyword_value(json : Json) -> Json {
-  match json {
-    String(text) => Json::string(text)
-    True => Json::string("true")
-    False => Json::string("false")
-    _ => Json::null()
+fn keyword_value(keyword : String, json : Json) -> Json {
+  if keyword == "additionalProperties" {
+    match json {
+      Object(_) => Json::string("schema")
+      _ => Json::null()
+    }
+  } else {
+    match json {
+      String(text) => Json::string(text)
+      True => Json::string("true")
+      False => Json::string("false")
+      _ => Json::null()
+    }
   }
 }
 
@@ -58,16 +65,27 @@ fn scan_schema(
     Object(entries) => {
       for keyword in keywords {
         match entries.get(keyword) {
-          Some(value) =>
-            out.push(
-              Json::object(
-                Map([
-                  ("pointer", Json::string(pointer + "/" + keyword)),
-                  ("keyword", Json::string(keyword)),
-                  ("value", keyword_value(value)),
-                ]),
-              ),
-            )
+          Some(value) => {
+            let record = if keyword == "additionalProperties" {
+              match value {
+                Object(_) => true
+                _ => false
+              }
+            } else {
+              true
+            }
+            if record {
+              out.push(
+                Json::object(
+                  Map([
+                    ("pointer", Json::string(pointer + "/" + keyword)),
+                    ("keyword", Json::string(keyword)),
+                    ("value", keyword_value(keyword, value)),
+                  ]),
+                ),
+              )
+            }
+          }
           None => ()
         }
       }
@@ -170,16 +188,27 @@ fn scan_operation(
     Object(entries) => {
       for keyword in ["callbacks", "webhooks"] {
         match entries.get(keyword) {
-          Some(value) =>
-            out.push(
-              Json::object(
-                Map([
-                  ("pointer", Json::string(pointer + "/" + keyword)),
-                  ("keyword", Json::string(keyword)),
-                  ("value", keyword_value(value)),
-                ]),
-              ),
-            )
+          Some(value) => {
+            let record = if keyword == "additionalProperties" {
+              match value {
+                Object(_) => true
+                _ => false
+              }
+            } else {
+              true
+            }
+            if record {
+              out.push(
+                Json::object(
+                  Map([
+                    ("pointer", Json::string(pointer + "/" + keyword)),
+                    ("keyword", Json::string(keyword)),
+                    ("value", keyword_value(keyword, value)),
+                  ]),
+                ),
+              )
+            }
+          }
           None => ()
         }
       }

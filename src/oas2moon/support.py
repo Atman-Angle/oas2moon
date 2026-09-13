@@ -120,15 +120,6 @@ def _check_schema(
 
     kind = schema.kind
     if kind == "object":
-        if not schema.properties:
-            errors.append(
-                _error(
-                    "unsupported.schema",
-                    location,
-                    "object schemas without declared properties (free-form maps) are not supported",
-                )
-            )
-            return
         for name, child in schema.properties:
             if child.kind == "object" and child.ref is None:
                 errors.append(
@@ -139,15 +130,6 @@ def _check_schema(
                     )
                 )
                 continue
-            if child.nullable and name in schema.required:
-                warnings.append(
-                    _warning(
-                        "nullable.collapsed",
-                        f"{location}/properties/{_pointer_escape(name)}",
-                        "property is both required and nullable; the generated field is "
-                        "optional, so missing and explicit null are indistinguishable",
-                    )
-                )
             _check_schema(
                 child,
                 f"{location}/properties/{_pointer_escape(name)}",
@@ -168,20 +150,6 @@ def _check_schema(
                     "unsupported.inline_object",
                     f"{location}/items",
                     "inline object schemas are not supported; declare a named component schema",
-                )
-            )
-            return
-        if (
-            schema.items.ref is None
-            and schema.items.kind == "integer"
-            and schema.items.format == "int64"
-        ):
-            errors.append(
-                _error(
-                    "unsupported.schema",
-                    f"{location}/items",
-                    "arrays of int64 are not supported: the MoonBit Int64 JSON codec uses "
-                    "a string representation, which would not match integer wire values",
                 )
             )
             return
@@ -301,15 +269,6 @@ def _check_parameter(
     _check_schema(
         parameter.schema, f"{location}/schema", known_schemas, errors, warnings
     )
-    if parameter.schema.nullable:
-        warnings.append(
-            _warning(
-                "nullable.collapsed",
-                location,
-                "a nullable parameter is represented as an optional argument; "
-                "missing and explicit null are indistinguishable",
-            )
-        )
 
 
 def _check_operation(
@@ -443,9 +402,9 @@ def _check_operation(
                 )
             )
             continue
-            _check_schema(
-                response.schema,
-                f"{response_location}/content/application~1json/schema",
+        _check_schema(
+            response.schema,
+            f"{response_location}/content/application~1json/schema",
             known_schemas,
             errors,
             warnings,
@@ -496,14 +455,24 @@ def validate(model: FrontendModel) -> SupportReport:
             )
         )
     for finding in model.ignored:
-        warnings.append(
-            _warning(
-                "ignored.keyword",
-                finding.pointer,
-                f"keyword {finding.keyword!r} is recorded but not modeled; "
-                "it does not change wire encoding",
+        if finding.keyword == "additionalProperties" and finding.value == "schema":
+            warnings.append(
+                _warning(
+                    "typed_additional_properties.json_fallback",
+                    finding.pointer,
+                    "typed additionalProperties is represented as Map[String, Json]; "
+                    "raw values are preserved losslessly, but no static element type is generated",
+                )
             )
-        )
+        else:
+            warnings.append(
+                _warning(
+                    "ignored.keyword",
+                    finding.pointer,
+                    f"keyword {finding.keyword!r} is recorded but not modeled; "
+                    "it does not change wire encoding",
+                )
+            )
 
     known_schemas = frozenset(name for name, _schema in model.schemas)
 

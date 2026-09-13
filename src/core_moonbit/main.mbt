@@ -43,6 +43,19 @@ fn truth(v : Json) -> Bool {
 }
 
 ///|
+fn presence(required : Bool, nullable : Bool) -> String {
+  if required && nullable {
+    "required_nullable"
+  } else if required {
+    "required"
+  } else if nullable {
+    "optional_nullable"
+  } else {
+    "optional"
+  }
+}
+
+///|
 fn int_value(v : Json) -> Int {
   let s = text(v)
   let mut n = 0
@@ -289,16 +302,18 @@ fn main raise {
             is_req = true
           }
         }
+        let is_nullable = truth(get(ch, "nullable"))
         let f = Json::object(
           Map([
             ("name", Json::string(field_name)),
             ("wire_name", Json::string(pn)),
             ("type", type_ref(ch)),
             ("required", Json::boolean(is_req)),
-            ("nullable", Json::boolean(truth(get(ch, "nullable")))),
+            ("nullable", Json::boolean(is_nullable)),
+            ("presence", Json::string(presence(is_req, is_nullable))),
           ]),
         )
-        if is_req && !truth(get(ch, "nullable")) {
+        if is_req {
           required_fields.push(f)
         } else {
           optional_fields.push(f)
@@ -307,11 +322,21 @@ fn main raise {
       for f in optional_fields {
         required_fields.push(f)
       }
+      let has_additional = truth(get(schema, "additionalProperties"))
+      let additional_field = if has_additional {
+        let name = unique("additional_properties", taken_fields)
+        mark(taken_fields, name)
+        Json::string(name)
+      } else {
+        Json::null()
+      }
       models.push(
         Json::object(
           Map([
             ("kind", Json::string("struct")),
             ("name", Json::string(model_name)),
+            ("additional_properties", Json::boolean(has_additional)),
+            ("additional_properties_field", additional_field),
             ("fields", Json::array(required_fields)),
           ]),
         ),
@@ -336,9 +361,15 @@ fn main raise {
           ("type", type_ref(sc)),
           ("required", get(p, "required")),
           ("nullable", get(sc, "nullable")),
+          (
+            "presence",
+            Json::string(
+              presence(truth(get(p, "required")), truth(get(sc, "nullable"))),
+            ),
+          ),
         ]),
       )
-      if truth(get(p, "required")) && !truth(get(sc, "nullable")) {
+      if truth(get(p, "required")) {
         required_params.push(q)
       } else {
         optional_params.push(q)

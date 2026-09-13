@@ -64,6 +64,8 @@ class FieldIr:
     @property
     def moon_type(self) -> str:
         rendered = self.type.render()
+        if self.presence == "optional_nullable":
+            return f"Presence[{rendered}]"
         return f"{rendered}?" if self.optional else rendered
 
     @property
@@ -91,6 +93,8 @@ class StructIr:
     name: str
     description: str
     fields: tuple[FieldIr, ...]
+    additional_properties: bool = False
+    additional_properties_field: str | None = None
 
 
 ModelIr = EnumIr | StructIr
@@ -112,6 +116,8 @@ class ParamIr:
     @property
     def moon_type(self) -> str:
         rendered = self.type.render()
+        if self.presence == "optional_nullable":
+            return f"Presence[{rendered}]"
         return f"{rendered}?" if self.optional else rendered
 
     @property
@@ -227,10 +233,12 @@ class ApiIr:
                 models.append({
                     "kind": "struct",
                     "name": model.name,
+                    "additional_properties": model.additional_properties,
+                    "additional_properties_field": model.additional_properties_field,
                     "fields": [
                         {"name": field.name, "wire_name": field.wire_name,
                          "type": typeref(field.type), "required": field.required,
-                         "nullable": field.nullable}
+                         "nullable": field.nullable, "presence": field.presence}
                         for field in model.fields
                     ],
                 })
@@ -251,7 +259,8 @@ class ApiIr:
                  "parameters": [
                      {"name": parameter.name, "wire_name": parameter.wire_name,
                       "location": parameter.location, "type": typeref(parameter.type),
-                      "required": parameter.required, "nullable": parameter.nullable}
+                      "required": parameter.required, "nullable": parameter.nullable,
+                      "presence": parameter.presence}
                      for parameter in operation.params
                  ],
                  "request_body": None if operation.request_body is None else {
