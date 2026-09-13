@@ -125,6 +125,6 @@ current Phase 1 cases should receive additional tests before Phase 2.
 **GO**. The production path no longer depends on Python semantics, strict covered
 differential parity is green (`0` failures), real MoonBit core tests pass,
 Windows passes, the full spike remains green, and hosted Ubuntu CI has passed.
-Phase 1.5's final `CONDITIONAL_GO` condition is closed.
+All Phase 1.5 exit conditions are satisfied.
 
 Phase 2 was not started.
