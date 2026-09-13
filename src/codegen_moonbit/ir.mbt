@@ -232,7 +232,7 @@ fn parse_enum_member(value : Json, location : String) -> EnumMemberIr raise {
   if name.length() == 0 {
     raise Failure(location + ": enum enum_member name must not be empty")
   }
-  { name, wire }
+  { name, wire, }
 }
 
 ///|
