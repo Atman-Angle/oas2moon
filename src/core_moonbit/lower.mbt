@@ -245,6 +245,16 @@ fn parse_operation(op_json : Json) -> OperationIr {
     }
     _ => None
   }
+  // Compute body parameter name from the type or default to "body"
+  let body_name = match rb {
+    Some(body) =>
+      match body.type_ref {
+        Some(Named(name)) => Some(unique(snake(name), taken_params))
+        Some(_) => Some(unique("body", taken_params))
+        None => None
+      }
+    None => None
+  }
   // Parse responses
   let success : Array[ResponseIr] = []
   let errors : Array[ResponseIr] = []
@@ -293,6 +303,7 @@ fn parse_operation(op_json : Json) -> OperationIr {
     tags,
     parameters: parsed_params,
     request_body: rb,
+    body_name,
     success_responses: success,
     error_responses: errors,
     response_strategy: strategy,

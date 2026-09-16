@@ -109,6 +109,7 @@ pub struct OperationIr {
   tags : Array[String]
   parameters : Array[ParameterIr]
   request_body : RequestBodyIr?
+  body_name : String?
   success_responses : Array[ResponseIr]
   error_responses : Array[ResponseIr]
   response_strategy : ResponseStrategy
@@ -659,6 +660,11 @@ fn parse_operation(
     Some(rv) => parse_request_body(rv, location + ".request_body")
     None => None
   }
+  let body_name = match fields.get("body_name") {
+    Some(Null) => None
+    Some(value) => Some(require_string(value, location + ".body_name"))
+    None => None
+  }
   match request_body {
     Some(body) =>
       match body.type_ref {
@@ -723,6 +729,7 @@ fn parse_operation(
     tags,
     parameters,
     request_body,
+    body_name,
     success_responses,
     error_responses,
     response_strategy,

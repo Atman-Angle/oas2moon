@@ -832,25 +832,6 @@ fn join_strings(parts : Array[String], sep : String) -> String {
 // ---------------------------------------------------------------------------
 
 ///|
-fn snake_from_pascal(name : String) -> String {
-  let out = StringBuilder::new()
-  let mut prev_lower = false
-  for ch in name {
-    if ch >= 'A' && ch <= 'Z' {
-      if prev_lower {
-        out.write_char('_')
-      }
-      out.write_char(Int::unsafe_to_char(ch.to_int() + 32))
-      prev_lower = false
-    } else {
-      out.write_char(ch)
-      prev_lower = ch >= 'a' && ch <= 'z'
-    }
-  }
-  escape_moonbit(out.to_string())
-}
-
-///|
 fn pascal_from_snake(snake : String) -> String {
   let out = StringBuilder::new()
   let mut upper_next = true
@@ -866,18 +847,6 @@ fn pascal_from_snake(snake : String) -> String {
     }
   }
   out.to_string()
-}
-
-///|
-fn body_param_name(type_ref : TypeRef) -> String {
-  match type_ref.kind {
-    "named" =>
-      match type_ref.name {
-        Some(name) => snake_from_pascal(name)
-        None => "body"
-      }
-    _ => "body"
-  }
 }
 
 ///|
@@ -991,13 +960,9 @@ fn emit_operation(out : StringBuilder, op : OperationIr) -> Unit {
       }
     None => false
   }
-  let body_name = match op.request_body {
-    Some(body) =>
-      match body.type_ref {
-        Some(tr) => body_param_name(tr)
-        None => "body"
-      }
-    None => ""
+  let body_name = match op.body_name {
+    Some(name) => name
+    None => "body"
   }
   let param_lines : Array[String] = []
   for p in op.parameters {

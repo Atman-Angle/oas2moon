@@ -128,6 +128,7 @@ pub struct OperationIr {
   tags : Array[String]
   parameters : Array[ParameterIr]
   request_body : RequestBodyIr?
+  body_name : String?
   success_responses : Array[ResponseIr]
   error_responses : Array[ResponseIr]
   response_strategy : ResponseStrategy

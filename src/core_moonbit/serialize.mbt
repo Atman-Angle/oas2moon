@@ -255,6 +255,15 @@ fn strategy_to_json(s : ResponseStrategy) -> Json {
 }
 
 ///|
+fn body_name_to_json(name : String?) -> Json {
+  match name {
+    Some(n) => Json::string(n)
+    None => Json::null()
+  }
+}
+
+///|
+/// Serialize an OperationIr to JSON.
 fn operation_to_json(op : OperationIr) -> Json {
   Json::object(
     Map([
@@ -265,6 +274,7 @@ fn operation_to_json(op : OperationIr) -> Json {
       ("tags", strings_to_json(op.tags)),
       ("parameters", parameters_to_json(op.parameters)),
       ("request_body", request_body_to_json(op.request_body)),
+      ("body_name", body_name_to_json(op.body_name)),
       ("success_responses", responses_to_json(op.success_responses)),
       ("error_responses", responses_to_json(op.error_responses)),
       ("response_strategy", strategy_to_json(op.response_strategy)),
