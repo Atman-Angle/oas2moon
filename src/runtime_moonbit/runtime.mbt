@@ -319,10 +319,63 @@ pub impl Transport for CaptureTransport with fn send(
 }
 
 ///|
+/// The standard Base64 alphabet (RFC 4648).
+let base64_chars : Array[Char] = [
+  'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
+  'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f',
+  'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
+  'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/',
+]
+
+///|
+/// Encode a UTF-8 string as Base64 (RFC 4648, padded).
+///
+/// Basic authentication needs this, and the runtime must not depend on a
+/// platform codec for something this small and this well specified.
+fn base64_encode(input : String) -> String {
+  let bytes = @utf8.encode(input)
+  let out = StringBuilder::new()
+  let mut i = 0
+  while i < bytes.length() {
+    let b0 = bytes[i].to_int() & 0xFF
+    let b1 = if i + 1 < bytes.length() {
+      bytes[i + 1].to_int() & 0xFF
+    } else {
+      0
+    }
+    let b2 = if i + 2 < bytes.length() {
+      bytes[i + 2].to_int() & 0xFF
+    } else {
+      0
+    }
+    let triple = (b0 << 16) | (b1 << 8) | b2
+    out.write_char(base64_chars[(triple >> 18) & 0x3F])
+    out.write_char(base64_chars[(triple >> 12) & 0x3F])
+    if i + 1 < bytes.length() {
+      out.write_char(base64_chars[(triple >> 6) & 0x3F])
+    } else {
+      out.write_char('=')
+    }
+    if i + 2 < bytes.length() {
+      out.write_char(base64_chars[triple & 0x3F])
+    } else {
+      out.write_char('=')
+    }
+    i = i + 3
+  }
+  out.to_string()
+}
+
+///|
 /// Build auth headers for the given security requirements.
 /// Does not perform I/O; pure map construction.
 ///
-/// `operation_id` is included in any raised `Configuration` error.
+/// Supports the V1 schemes `bearer`, `basic`, and `apiKey`. An `apiKey`
+/// carried in the query string contributes no header; `auth_query` supplies it
+/// instead.
+///
+/// `operation_id` is included in any raised `Configuration` error: a missing
+/// or unusable credential is a configuration fault, not a transport fault.
 pub fn auth_headers(
   cfg : Config,
   requirements : Array[String],
@@ -342,6 +395,55 @@ pub fn auth_headers(
         }
         headers["Authorization"] = "Bearer " + token
       }
+      "basic" => {
+        let username = match cfg.basic_username() {
+          Some(u) => u
+          None =>
+            raise Configuration(
+              operation_id,
+              "missing basic auth username for " + requirement,
+            )
+        }
+        let password = match cfg.basic_password() {
+          Some(p) => p
+          None =>
+            raise Configuration(
+              operation_id,
+              "missing basic auth password for " + requirement,
+            )
+        }
+        headers["Authorization"] = "Basic " +
+          base64_encode(username + ":" + password)
+      }
+      "apiKey" => {
+        let location = match cfg.api_key_location() {
+          Some(l) => l
+          None =>
+            raise Configuration(
+              operation_id,
+              "missing apiKey location for " + requirement,
+            )
+        }
+        if location == "header" {
+          let key_name = match cfg.api_key_name() {
+            Some(n) => n
+            None =>
+              raise Configuration(
+                operation_id,
+                "missing apiKey name for " + requirement,
+              )
+          }
+          let key_value = match cfg.api_key_value() {
+            Some(v) => v
+            None =>
+              raise Configuration(
+                operation_id,
+                "missing apiKey value for " + requirement,
+              )
+          }
+          headers[key_name] = key_value
+        }
+      }
       _ =>
         raise Configuration(
           operation_id,
@@ -350,4 +452,49 @@ pub fn auth_headers(
     }
   }
   headers
+}
+
+///|
+/// Build the query parameters an in-query API key contributes.
+///
+/// Returns an empty array for every other scheme so a caller can append the
+/// result unconditionally.
+pub fn auth_query(
+  cfg : Config,
+  requirements : Array[String],
+  operation_id? : String = "",
+) -> Array[(String, String)] raise SdkError {
+  let params : Array[(String, String)] = []
+  for requirement in requirements {
+    if requirement == "apiKey" {
+      let location = match cfg.api_key_location() {
+        Some(l) => l
+        None =>
+          raise Configuration(
+            operation_id,
+            "missing apiKey location for " + requirement,
+          )
+      }
+      if location == "query" {
+        let key_name = match cfg.api_key_name() {
+          Some(n) => n
+          None =>
+            raise Configuration(
+              operation_id,
+              "missing apiKey name for " + requirement,
+            )
+        }
+        let key_value = match cfg.api_key_value() {
+          Some(v) => v
+          None =>
+            raise Configuration(
+              operation_id,
+              "missing apiKey value for " + requirement,
+            )
+        }
+        params.push((key_name, key_value))
+      }
+    }
+  }
+  params
 }
