@@ -23,13 +23,15 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import re
 import shutil
 import subprocess
 import sys
-import tempfile
+import uuid
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -109,6 +111,31 @@ def _copy_runtime_files(out_dir: Path) -> None:
         src = _RUNTIME_DIR / name
         if src.is_file():
             shutil.copy2(str(src), str(out_dir / name))
+
+
+@contextlib.contextmanager
+def _work_dir() -> Iterator[Path]:
+    """Yield a unique scratch directory, and always remove it afterwards.
+
+    Two constraints shape this:
+
+    * the directory lives under the project tree rather than the system temp
+      directory, because MoonBit's filesystem library trips over the non-ASCII
+      characters that a user temp path can contain on Windows;
+    * the name is unique per invocation, because a fixed path let concurrent
+      ``generate`` runs overwrite each other's intermediate files.
+
+    Cleanup is in a ``finally`` so an exception mid-pipeline cannot leave the
+    scratch directory behind.
+    """
+    root = _PROJECT_ROOT / "src" / "_work"
+    root.mkdir(parents=True, exist_ok=True)
+    path = root / f"generate-{os.getpid()}-{uuid.uuid4().hex[:12]}"
+    path.mkdir(parents=True, exist_ok=False)
+    try:
+        yield path
+    finally:
+        shutil.rmtree(str(path), ignore_errors=True)
 
 
 def _write_moon_pkg(out_dir: Path) -> None:
@@ -191,85 +218,79 @@ def cmd_generate(args: argparse.Namespace) -> int:
         print(f"error: output path is not a directory: {out_dir}", file=sys.stderr)
         return 6
 
-    # Use a work directory under the project's _build to avoid
-    # system temp paths that may contain non-ASCII characters
-    # which can cause issues with MoonBit's filesystem library.
-    work_dir = _PROJECT_ROOT / "src" / "_work" / "generate"
-    work_dir.mkdir(parents=True, exist_ok=True)
+    with _work_dir() as work_dir:
 
-    normalized_path = work_dir / "normalized.json"
-    canonical_path = work_dir / "canonical.json"
+        normalized_path = work_dir / "normalized.json"
+        canonical_path = work_dir / "canonical.json"
 
-    # ── Step 1: Frontend adapter ────────────────────────────
-    step = "frontend: parse OpenAPI → normalized model"
-    r1 = _moon_run(_FRONTEND_DIR, str(input_path), str(normalized_path))
-    if r1.returncode != 0 or not normalized_path.is_file():
-        detail = _fetch_output(r1)
-        if detail:
-            print(detail, file=sys.stderr)
-        print(_step_label(step, False), file=sys.stderr)
-        return 3
-    normalized_size = normalized_path.stat().st_size
-    print(_step_label(step, True), file=sys.stderr)
+        # ── Step 1: Frontend adapter ────────────────────────────
+        step = "frontend: parse OpenAPI → normalized model"
+        r1 = _moon_run(_FRONTEND_DIR, str(input_path), str(normalized_path))
+        if r1.returncode != 0 or not normalized_path.is_file():
+            detail = _fetch_output(r1)
+            if detail:
+                print(detail, file=sys.stderr)
+            print(_step_label(step, False), file=sys.stderr)
+            return 3
+        normalized_size = normalized_path.stat().st_size
+        print(_step_label(step, True), file=sys.stderr)
 
-    # ── Step 2: IR builder ──────────────────────────────────
-    step = "core: normalized model → canonical IR"
-    r2 = _moon_run(
-        _CORE_DIR, str(normalized_path), str(canonical_path), module_name,
-    )
-    if r2.returncode != 0 or not canonical_path.is_file():
-        detail = _fetch_output(r2)
-        if detail:
-            print(detail, file=sys.stderr)
-        print(_step_label(step, False), file=sys.stderr)
-        return 5
-    canonical_size = canonical_path.stat().st_size
-    print(_step_label(step, True), file=sys.stderr)
+        # ── Step 2: IR builder ──────────────────────────────────
+        step = "core: normalized model → canonical IR"
+        r2 = _moon_run(
+            _CORE_DIR, str(normalized_path), str(canonical_path), module_name,
+        )
+        if r2.returncode != 0 or not canonical_path.is_file():
+            detail = _fetch_output(r2)
+            if detail:
+                print(detail, file=sys.stderr)
+            print(_step_label(step, False), file=sys.stderr)
+            return 5
+        canonical_size = canonical_path.stat().st_size
+        print(_step_label(step, True), file=sys.stderr)
 
-    if getattr(args, "ir_out", None):
-        ir_target = Path(args.ir_out).resolve()
-        ir_target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(str(canonical_path), str(ir_target))
+        if getattr(args, "ir_out", None):
+            ir_target = Path(args.ir_out).resolve()
+            ir_target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(str(canonical_path), str(ir_target))
 
-    # ── Load canonical IR for inspection ────────────────────
-    try:
-        api: dict[str, Any] = json.loads(canonical_path.read_text(encoding="utf-8"))
-    except Exception as exc:
-        print(f"error: failed to parse canonical IR: {exc}", file=sys.stderr)
-        return 5
+        # ── Load canonical IR for inspection ────────────────────
+        try:
+            api: dict[str, Any] = json.loads(canonical_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            print(f"error: failed to parse canonical IR: {exc}", file=sys.stderr)
+            return 5
 
-    # ── Step 3: Codegen ─────────────────────────────────────
-    step = "codegen: canonical IR → MoonBit SDK"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    r3 = _moon_run(_CODEGEN_DIR, str(canonical_path), str(out_dir))
-    if r3.returncode != 0:
-        detail = _fetch_output(r3)
-        if detail:
-            print(detail, file=sys.stderr)
-        print(_step_label(step, False), file=sys.stderr)
-        return 5
-    print(_step_label(step, True), file=sys.stderr)
+        # ── Step 3: Codegen ─────────────────────────────────────
+        step = "codegen: canonical IR → MoonBit SDK"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        r3 = _moon_run(_CODEGEN_DIR, str(canonical_path), str(out_dir))
+        if r3.returncode != 0:
+            detail = _fetch_output(r3)
+            if detail:
+                print(detail, file=sys.stderr)
+            print(_step_label(step, False), file=sys.stderr)
+            return 5
+        print(_step_label(step, True), file=sys.stderr)
 
-    # ── Step 4: Copy runtime files ──────────────────────────
-    step = "runtime: copy runtime sources"
-    _copy_runtime_files(out_dir)
-    print(_step_label(step, True), file=sys.stderr)
+        # ── Step 4: Copy runtime files ──────────────────────────
+        step = "runtime: copy runtime sources"
+        _copy_runtime_files(out_dir)
+        print(_step_label(step, True), file=sys.stderr)
 
-    # ── Step 5: moon fmt ────────────────────────────────────
-    step = "moon fmt"
-    r4 = _moon_fmt(out_dir)
-    if r4.returncode != 0:
-        detail = _fetch_output(r4)
-        if detail:
-            print(detail, file=sys.stderr)
-        print(_step_label(step, False), file=sys.stderr)
-        return 5
-    print(_step_label(step, True), file=sys.stderr)
+        # ── Step 5: moon fmt ────────────────────────────────────
+        step = "moon fmt"
+        r4 = _moon_fmt(out_dir)
+        if r4.returncode != 0:
+            detail = _fetch_output(r4)
+            if detail:
+                print(detail, file=sys.stderr)
+            print(_step_label(step, False), file=sys.stderr)
+            return 5
+        print(_step_label(step, True), file=sys.stderr)
 
-    # ── Clean up work dir ──────────────────────────────────
-    if work_dir.exists():
-        shutil.rmtree(str(work_dir), ignore_errors=True)
-
+    # Leaving the block removed the scratch directory; only then is the
+    # summary printed, so a failure never reports success.
     # ── Summary ─────────────────────────────────────────────
     _print_summary(
         api,

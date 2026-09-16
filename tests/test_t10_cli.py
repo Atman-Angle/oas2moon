@@ -13,6 +13,7 @@ Tests the ``oas2moon generate`` command end-to-end, covering:
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import os
 import shutil
@@ -26,6 +27,17 @@ FIXTURES_DIR = ROOT / "fixtures"
 OUTPUT_ROOT = ROOT / "tests" / "_build" / "t10-cli"
 
 SKIP_CHECK = os.environ.get("SKIP_MOON_CHECK", "0") == "1"
+
+
+def load_cli_module():
+    """Load the CLI by path without depending on the package import cache."""
+    spec = importlib.util.spec_from_file_location(
+        "oas2moon_cli_under_test", ROOT / "src" / "oas2moon" / "cli.py"
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def run_cli(*args: str) -> subprocess.CompletedProcess:
@@ -157,6 +169,89 @@ def test_determinism() -> None:
         assert h1[key] == h2[key], f"Content differs for {key}"
 
 
+def test_work_dir_is_unique_and_cleaned() -> None:
+    """Each invocation gets its own scratch directory, removed on exit.
+
+    The CLI used to build its intermediate files in one fixed path
+    (``src/_work/generate``), so concurrent runs overwrote each other.
+    """
+    cli = load_cli_module()
+
+    import contextlib
+
+    with contextlib.ExitStack() as stack:
+        first = stack.enter_context(cli._work_dir())
+        second = stack.enter_context(cli._work_dir())
+        assert first != second, "every invocation must get its own scratch dir"
+        assert first.parent == second.parent, "scratch dirs share the _work parent"
+        assert first.name.startswith("generate-"), first.name
+        assert first.is_dir() and second.is_dir()
+        # Still under the project tree, so MoonBit never sees a temp path with
+        # non-ASCII characters.
+        assert ROOT in first.parents, first
+        held = [first, second]
+
+    for path in held:
+        assert not path.exists(), f"scratch dir was not cleaned up: {path}"
+
+
+def test_concurrent_generation_uses_distinct_scratch_dirs() -> None:
+    """Overlapping `generate` calls must not share intermediate files.
+
+    This spies on the scratch-directory helper in process: two runs over the
+    same input produce byte-identical intermediates, so a shared directory
+    would be invisible from the output alone. Recording the directories that
+    were actually used is what makes the old fixed-path defect detectable.
+    """
+    import argparse
+    import concurrent.futures
+    import contextlib
+
+    cli = load_cli_module()
+
+    spec = FIXTURES_DIR / "petstore" / "openapi.json"
+    seen: list[str] = []
+    real_work_dir = cli._work_dir
+
+    @contextlib.contextmanager
+    def spy():
+        with real_work_dir() as path:
+            seen.append(str(path))
+            yield path
+
+    def generate(out_dir: Path) -> int:
+        return cli.cmd_generate(
+            argparse.Namespace(
+                input=str(spec),
+                module="petstore",
+                out=str(out_dir),
+                ir_out=None,
+            )
+        )
+
+    out_a = _out("concurrent-a")
+    out_b = _out("concurrent-b")
+    cli._work_dir = spy
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+            codes = list(pool.map(generate, [out_a, out_b]))
+    finally:
+        cli._work_dir = real_work_dir
+
+    assert codes == [0, 0], f"generate returned {codes}"
+    assert len(seen) == 2, f"expected two scratch dirs, saw {seen}"
+    assert len(set(seen)) == 2, f"concurrent runs shared a scratch dir: {seen}"
+
+    h1 = get_file_hashes(out_a)
+    h2 = get_file_hashes(out_b)
+    assert h1.keys() == h2.keys(), "concurrent runs produced different file lists"
+    for key in sorted(h1.keys()):
+        assert h1[key] == h2[key], f"concurrent runs disagreed on {key}"
+
+    leftovers = sorted(p.name for p in (ROOT / "src" / "_work").glob("generate-*"))
+    assert leftovers == [], f"scratch directories leaked: {leftovers}"
+
+
 def test_compiled_output() -> None:
     """Generated package must pass moon fmt --check and moon check --deny-warn."""
     if SKIP_CHECK:
@@ -188,6 +283,8 @@ if __name__ == "__main__":
         ("success YAML", test_success_yaml),
         ("unsupported spec", test_unsupported_spec),
         ("determinism", test_determinism),
+        ("work dir unique + cleaned", test_work_dir_is_unique_and_cleaned),
+        ("concurrent scratch dirs", test_concurrent_generation_uses_distinct_scratch_dirs),
         ("compiled output", test_compiled_output),
     ]
     failures = 0

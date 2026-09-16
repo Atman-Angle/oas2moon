@@ -186,21 +186,23 @@ Response {
 
 ### 6.1 生成包
 
-每个生成包至少包含：
+每个生成包固定为下面这套**平铺**布局（与 `DECISIONS.md` §8 一致，不设
+`model/`、`operation/`、`runtime/` 子目录）：
 
 ```text
-moon.mod
-moon.pkg
-client.mbt
-runtime.mbt 或 runtime 依赖
-models.mbt
-errors.mbt
-auth.mbt
-operations/*.mbt
-README.md
+moon.mod            # 模块名；有 operation 时声明 moonbitlang/async 依赖
+moon.pkg            # imports；由 codegen 独占，下游不得改写
+models.mbt          # struct、enum、Presence、JSON codec
+client.mbt          # 公开 Client 与全部 operation 方法（无 operation 时不生成）
+runtime.mbt         # SdkError、Request/Response、Transport、CaptureTransport
+config.mbt          # base_url 与凭据
+encoding.mbt        # path/query/header 序列化
+http_transport.mbt  # 唯一接触 moonbitlang/async/http 的文件
 ```
 
-最终文件布局可以调整，但必须稳定、可读、可独立验证。
+错误模型在 `runtime.mbt`，鉴权配置在 `config.mbt` 与 `runtime.mbt`；不存在
+`errors.mbt`、`auth.mbt`、`operations/*.mbt`。runtime 以内联源码方式随包生成，
+使生成包自包含、无版本漂移；代价是 runtime 修复必须重新生成 SDK。
 
 ### 6.2 模型
 

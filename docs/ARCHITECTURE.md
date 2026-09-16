@@ -91,7 +91,14 @@ oas2moon/
 └── prompts/
 ```
 
-Exact MoonBit packages should follow the current toolchain rather than copying this tree mechanically.
+Exact MoonBit packages should follow the current toolchain rather than copying
+this tree mechanically.
+
+**Actual layout today** (the tree above is the original recommendation, not the
+repository as it stands): the pipeline is `src/frontend_adapter/`,
+`src/core_moonbit/`, `src/codegen_moonbit/` and `src/runtime_moonbit/`, all
+MoonBit; the CLI orchestration lives in `src/oas2moon/cli.py` (Python) and only
+drives those stages. The generated package layout is fixed by `DECISIONS.md` §8.
 
 ## 4. Frontend layer
 
