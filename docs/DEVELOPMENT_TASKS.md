@@ -410,7 +410,7 @@ T13 → T12 → T14 → T15
 | T03 | GET 纵切片 | TODO | 添加 GET fixture 和失败测试 |
 | T04 | 参数序列化 | TODO | 固定 query/path 编码规则 |
 | T05 | 响应策略 | TODO | 建立状态码矩阵 fixture |
-| T06 | Operation Codegen | TODO | 设计生成文件与方法模板 |
+| T06 | Operation Codegen | DONE | 设计生成文件与方法模板 |
 | T07 | CRUD/body | TODO | 先实现 POST + 204 |
 | T08 | 错误 | TODO | 定义 `SdkError` |
 | T09 | 鉴权 | TODO | 先做 Bearer |
@@ -429,3 +429,4 @@ T13 → T12 → T14 → T15
 - 如果 Windows 工具链不可用，必须准确记录限制，不能声称 Windows compile verified；
 - 若发现成熟直接竞品，暂停扩展实现并重新评估项目定位；
 - 任何 silent fallback 都视为阻断问题，而不是普通 bug。
+

@@ -804,6 +804,500 @@ fn module_file(module_name : String) -> String {
 }
 
 ///|
+fn path_join(directory : String, file : String) -> String {
+  if directory.has_suffix("/") || directory.has_suffix("\\") {
+    directory + file
+  } else {
+    directory + "/" + file
+  }
+}
+
+// ---------------------------------------------------------------------------
+// String helpers
+// ---------------------------------------------------------------------------
+
+///|
+fn join_strings(parts : Array[String], sep : String) -> String {
+  let out = StringBuilder::new()
+  for i, part in parts {
+    if i > 0 {
+      out.write_string(sep)
+    }
+    out.write_string(part)
+  }
+  out.to_string()
+}
+// ---------------------------------------------------------------------------
+// Operation codegen helpers
+// ---------------------------------------------------------------------------
+
+///|
+fn snake_from_pascal(name : String) -> String {
+  let out = StringBuilder::new()
+  let mut prev_lower = false
+  for ch in name {
+    if ch >= 'A' && ch <= 'Z' {
+      if prev_lower {
+        out.write_char('_')
+      }
+      out.write_char(Int::unsafe_to_char(ch.to_int() + 32))
+      prev_lower = false
+    } else {
+      out.write_char(ch)
+      prev_lower = ch >= 'a' && ch <= 'z'
+    }
+  }
+  escape_moonbit(out.to_string())
+}
+
+///|
+fn pascal_from_snake(snake : String) -> String {
+  let out = StringBuilder::new()
+  let mut upper_next = true
+  for ch in snake {
+    if ch == '_' {
+      upper_next = true
+    } else if upper_next && ch >= 'a' && ch <= 'z' {
+      out.write_char(Int::unsafe_to_char(ch.to_int() - 32))
+      upper_next = false
+    } else {
+      out.write_char(ch)
+      upper_next = false
+    }
+  }
+  out.to_string()
+}
+
+///|
+fn body_param_name(type_ref : TypeRef) -> String {
+  match type_ref.kind {
+    "named" =>
+      match type_ref.name {
+        Some(name) => snake_from_pascal(name)
+        None => "body"
+      }
+    _ => "body"
+  }
+}
+
+///|
+fn response_enum_name(op : OperationIr) -> String {
+  pascal_from_snake(op.fn_name) + "Response"
+}
+
+///|
+fn success_status_list(op : OperationIr) -> Array[Int] {
+  let out : Array[Int] = []
+  for r in op.success_responses {
+    out.push(r.status)
+  }
+  if out.length() == 0 {
+    out.push(200)
+  }
+  out
+}
+
+///|
+fn int_list_to_moon(ints : Array[Int]) -> String {
+  let parts : Array[String] = []
+  for n in ints {
+    parts.push(n.to_string())
+  }
+  "[" + join_strings(parts, ", ") + "]"
+}
+
+///|
+fn string_array_to_moon(strs : Array[String]) -> String {
+  let parts : Array[String] = []
+  for s in strs {
+    parts.push(quoted(s))
+  }
+  "[" + join_strings(parts, ", ") + "]"
+}
+
+// ---------------------------------------------------------------------------
+// Path expression builder
+// ---------------------------------------------------------------------------
+
+///|
+fn build_path_expr(op : OperationIr) -> String {
+  let path = op.path
+  let parts : Array[String] = []
+  let mut buf = StringBuilder::new()
+  let mut in_brace = false
+  let mut brace_buf = StringBuilder::new()
+  for ch in path {
+    if ch == '{' {
+      let lit = buf.to_string()
+      if lit.length() > 0 {
+        parts.push(quoted(lit))
+        buf = StringBuilder::new()
+      }
+      in_brace = true
+      brace_buf = StringBuilder::new()
+    } else if ch == '}' {
+      in_brace = false
+      let wire_name = brace_buf.to_string()
+      let mut found = ""
+      for p in op.parameters {
+        if p.wire_name == wire_name {
+          found = escape_moonbit(p.name)
+        }
+      }
+      if found.length() > 0 {
+        parts.push("encode_path_value(" + found + ".to_string())")
+      } else {
+        parts.push(quoted("{" + wire_name + "}"))
+      }
+    } else if in_brace {
+      brace_buf.write_char(ch)
+    } else {
+      buf.write_char(ch)
+    }
+  }
+  let lit = buf.to_string()
+  if lit.length() > 0 {
+    parts.push(quoted(lit))
+  }
+  if parts.length() == 0 {
+    quoted("")
+  } else if parts.length() == 1 {
+    parts[0]
+  } else {
+    join_strings(parts, " + ")
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Operation emission
+// ---------------------------------------------------------------------------
+
+///|
+fn variant_name(v : ResponseVariant) -> String {
+  "S" + v.status.to_string()
+}
+
+///|
+fn emit_operation(out : StringBuilder, op : OperationIr) -> Unit {
+  line(out, "///|")
+  line(out, "/// `" + op.http_method + " " + op.path + "`")
+  line(out, "pub fn Client::" + op.fn_name + "(")
+  line(out, "  self : Client,")
+  let has_body = match op.request_body {
+    Some(body) =>
+      match body.type_ref {
+        Some(_) => true
+        None => false
+      }
+    None => false
+  }
+  let body_name = match op.request_body {
+    Some(body) =>
+      match body.type_ref {
+        Some(tr) => body_param_name(tr)
+        None => "body"
+      }
+    None => ""
+  }
+  let param_lines : Array[String] = []
+  for p in op.parameters {
+    let mn = escape_moonbit(p.name)
+    match p.presence {
+      "required" =>
+        param_lines.push("  " + mn + " : " + render_type(p.type_ref))
+      "required_nullable" =>
+        param_lines.push("  " + mn + " : " + render_type(p.type_ref) + "?")
+      "optional" =>
+        param_lines.push("  " + mn + "? : " + render_type(p.type_ref))
+      "optional_nullable" =>
+        param_lines.push(
+          "  " + mn + "? : Presence[" + render_type(p.type_ref) + "] = Unset",
+        )
+      _ => abort("validated parameter has an unsupported presence")
+    }
+  }
+  if has_body {
+    match op.request_body {
+      Some(body) =>
+        match body.type_ref {
+          Some(tr) => {
+            let btype = render_type(tr)
+            if body.required {
+              param_lines.push("  " + body_name + " : " + btype)
+            } else {
+              param_lines.push("  " + body_name + "? : " + btype)
+            }
+          }
+          None => ()
+        }
+      None => ()
+    }
+  }
+  for pline in param_lines {
+    line(out, pline + ",")
+  }
+  let ret_type = match op.response_strategy {
+    SingleResult(tr) => render_type(tr)
+    UnitResult => "Unit"
+    NoContent => "Unit"
+    ResponseEnum(_) => response_enum_name(op)
+    UnsupportedMediaType(mt) =>
+      abort("unsupported media type in codegen: " + mt)
+  }
+  line(out, ") -> " + ret_type + " raise SdkError {")
+  if op.security.length() > 0 {
+    line(
+      out,
+      "  let headers = auth_headers(self.config, " +
+      string_array_to_moon(op.security) +
+      ")",
+    )
+  } else {
+    line(out, "  let headers : Map[String, String] = Map([])")
+  }
+  for p in op.parameters {
+    if p.location is HeaderLoc {
+      let mn = escape_moonbit(p.name)
+      let wire = quoted(p.wire_name)
+      match p.presence {
+        "required" => line(out, "  headers[" + wire + "] = " + mn)
+        "required_nullable" => {
+          line(out, "  match " + mn + " {")
+          line(out, "    Some(v) => headers[" + wire + "] = v")
+          line(out, "    None => ()")
+          line(out, "  }")
+        }
+        "optional" => {
+          line(out, "  match " + mn + " {")
+          line(out, "    Some(v) => headers[" + wire + "] = v")
+          line(out, "    None => ()")
+          line(out, "  }")
+        }
+        "optional_nullable" => {
+          line(out, "  match " + mn + " {")
+          line(out, "    Unset => ()")
+          line(out, "    Null => ()")
+          line(out, "    Value(v) => headers[" + wire + "] = v")
+          line(out, "  }")
+        }
+        _ => abort("validated parameter has an unsupported presence")
+      }
+    }
+  }
+  if has_body {
+    match op.request_body {
+      Some(body) =>
+        match body.media_type {
+          Some(mt) =>
+            line(
+              out,
+              "  headers[" + quoted("Content-Type") + "] = " + quoted(mt),
+            )
+          None => ()
+        }
+      None => ()
+    }
+  }
+  let has_query = {
+    let mut found = false
+    for p in op.parameters {
+      if p.location is QueryLoc {
+        found = true
+      }
+    }
+    found
+  }
+  if has_query {
+    line(out, "  let query : Array[(String, String)] = []")
+    for p in op.parameters {
+      if p.location is QueryLoc {
+        let mn = escape_moonbit(p.name)
+        let wire = quoted(p.wire_name)
+        match p.presence {
+          "required" =>
+            line(out, "  query.push((" + wire + ", " + mn + ".to_string()))")
+          "required_nullable" => {
+            line(out, "  match " + mn + " {")
+            line(
+              out,
+              "    Some(v) => query.push((" + wire + ", v.to_string()))",
+            )
+            line(out, "    None => ()")
+            line(out, "  }")
+          }
+          "optional" => {
+            line(out, "  match " + mn + " {")
+            line(
+              out,
+              "    Some(v) => query.push((" + wire + ", v.to_string()))",
+            )
+            line(out, "    None => ()")
+            line(out, "  }")
+          }
+          "optional_nullable" => {
+            line(out, "  match " + mn + " {")
+            line(out, "    Unset => ()")
+            line(out, "    Null => ()")
+            line(
+              out,
+              "    Value(v) => query.push((" + wire + ", v.to_string()))",
+            )
+            line(out, "  }")
+          }
+          _ => abort("validated parameter has an unsupported presence")
+        }
+      }
+    }
+  }
+  let path_expr = build_path_expr(op)
+  let http_method_str = quoted(op.http_method)
+  // Determine if body is optional
+  let body_optional : Bool = if has_body {
+    match op.request_body {
+      Some(body) => !body.required
+      None => false
+    }
+  } else {
+    false
+  }
+  if body_optional {
+    line(out, "  let request = match " + body_name + " {")
+    let mut with_args = http_method_str + ", " + path_expr
+    if has_query {
+      with_args += ", query~"
+    }
+    with_args += ", headers~"
+    line(
+      out,
+      "    Some(v) => Request::new(" + with_args + ", body=encode_json(v))",
+    )
+    line(out, "    None => Request::new(" + with_args + ")")
+    line(out, "  }")
+  } else {
+    let mut req_str = "  let request = Request::new(" +
+      http_method_str +
+      ", " +
+      path_expr
+    if has_query {
+      req_str += ", query~"
+    }
+    req_str += ", headers~"
+    if has_body {
+      match op.request_body {
+        Some(body) =>
+          match body.type_ref {
+            Some(_) =>
+              if body.required {
+                req_str += ", body=encode_json(" + body_name + ")"
+              }
+            None => ()
+          }
+        None => ()
+      }
+    }
+    req_str += ")"
+    line(out, req_str)
+  }
+  line(out, "  let response = send(self.transport, request)")
+  let statuses = success_status_list(op)
+  line(out, "  expect_status(response, " + int_list_to_moon(statuses) + ")")
+  match op.response_strategy {
+    SingleResult(tr) => {
+      let tname = render_type(tr)
+      match tr.kind {
+        "scalar" =>
+          match tr.name {
+            Some("Json") => {
+              line(out, "  @json.parse(response.body) catch {")
+              line(
+                out, "    _ => raise Decode(\"failed to parse JSON response\")",
+              )
+              line(out, "  }")
+            }
+            Some(_) => line(out, "  (decode_json(response) : " + tname + ")")
+            None => abort("validated type is missing its name")
+          }
+        "named" => line(out, "  (decode_json(response) : " + tname + ")")
+        "array" => line(out, "  (decode_json(response) : " + tname + ")")
+        _ => abort("validated type has an unsupported kind")
+      }
+    }
+    UnitResult => line(out, "  ()")
+    NoContent => line(out, "  ()")
+    ResponseEnum(variants) => {
+      line(out, "  match response.status {")
+      for v in variants {
+        line(out, "    " + v.status.to_string() + " => {")
+        let tname = render_type(v.type_ref)
+        line(out, "      " + response_enum_name(op) + "::" + variant_name(v))
+        line(out, "      (decode_json(response) : " + tname + ")")
+        line(out, "    }")
+      }
+      line(out, "    _ => raise HttpStatus(response.status, response.body)")
+      line(out, "  }")
+    }
+    UnsupportedMediaType(mt) =>
+      abort("unsupported media type in codegen: " + mt)
+  }
+  line(out, "}")
+  line(out, "")
+}
+
+///|
+fn emit_response_enums(out : StringBuilder, api : ApiIr) -> Unit {
+  for op in api.operations {
+    match op.response_strategy {
+      ResponseEnum(variants) => {
+        let ename = response_enum_name(op)
+        line(out, "///|")
+        line(out, "pub enum " + ename + " {")
+        for v in variants {
+          line(
+            out,
+            "  " + variant_name(v) + "(" + render_type(v.type_ref) + ")",
+          )
+        }
+        line(out, "} derive(Debug)")
+        line(out, "")
+      }
+      _ => ()
+    }
+  }
+}
+
+///|
+fn emit_client(api : ApiIr) -> String {
+  let out = StringBuilder()
+  line(out, "///|")
+  line(out, "/// Generated typed API client. Do not edit by hand.")
+  line(out, "")
+  emit_response_enums(out, api)
+  line(out, "///|")
+  line(out, "pub struct Client {")
+  line(out, "  transport : CaptureTransport")
+  line(out, "  config : Config")
+  line(out, "} derive(Debug)")
+  line(out, "")
+  line(out, "///|")
+  line(out, "pub fn Client::new(")
+  line(out, "  transport : CaptureTransport,")
+  line(out, "  base_url? : String = \"\",")
+  line(out, "  bearer_token? : String,")
+  line(out, ") -> Client {")
+  line(out, "  { transport, config: Config::new(base_url, bearer_token?) }")
+  line(out, "}")
+  line(out, "")
+  for op in api.operations {
+    emit_operation(out, op)
+  }
+  out.to_string().trim_end(chars="\n").to_owned() + "\n"
+}
+
+// ---------------------------------------------------------------------------
+// Updated package/main functions
+// ---------------------------------------------------------------------------
+
+///|
 fn api_uses_int64(api : ApiIr) -> Bool {
   for model in api.models {
     match model {
@@ -816,34 +1310,55 @@ fn api_uses_int64(api : ApiIr) -> Bool {
         }
     }
   }
+  for op in api.operations {
+    for p in op.parameters {
+      if contains_int64(p.type_ref) {
+        return true
+      }
+    }
+    match op.request_body {
+      Some(body) =>
+        match body.type_ref {
+          Some(tr) => if contains_int64(tr) { return true }
+          None => ()
+        }
+      None => ()
+    }
+    match op.response_strategy {
+      SingleResult(tr) => if contains_int64(tr) { return true }
+      ResponseEnum(variants) =>
+        for v in variants {
+          if contains_int64(v.type_ref) {
+            return true
+          }
+        }
+      _ => ()
+    }
+  }
   false
 }
 
 ///|
-fn package_file(needs_string : Bool) -> String {
-  if needs_string {
-    "import {\n" +
-    "  \"moonbitlang/core/json\",\n" +
-    "  \"moonbitlang/core/string\",\n" +
-    "}\n" +
-    "\n" +
-    "supported_targets = \"+native\"\n"
-  } else {
-    "import {\n" +
-    "  \"moonbitlang/core/json\",\n" +
-    "}\n" +
-    "\n" +
-    "supported_targets = \"+native\"\n"
-  }
+fn api_has_operations(api : ApiIr) -> Bool {
+  api.operations.length() > 0
 }
 
 ///|
-fn path_join(directory : String, file : String) -> String {
-  if directory.has_suffix("/") || directory.has_suffix("\\") {
-    directory + file
-  } else {
-    directory + "/" + file
+fn package_file(needs_string : Bool, has_operations : Bool) -> String {
+  let imports : Array[String] = []
+  imports.push("\"moonbitlang/core/json\"")
+  if has_operations {
+    imports.push("\"moonbitlang/core/encoding/utf8\"")
   }
+  if needs_string {
+    imports.push("\"moonbitlang/core/string\"")
+  }
+  let mut result = "import {\n"
+  for imp in imports {
+    result += "  " + imp + ",\n"
+  }
+  result += "}\n\nsupported_targets = \"+native\"\n"
+  result
 }
 
 ///|
@@ -862,7 +1377,10 @@ fn main raise {
   )
   @fs.write_string_to_file(
     path_join(args[2], "moon.pkg"),
-    package_file(api_uses_int64(api)),
+    package_file(api_uses_int64(api), api_has_operations(api)),
   )
   @fs.write_string_to_file(path_join(args[2], "models.mbt"), emit_models(api))
+  if api_has_operations(api) {
+    @fs.write_string_to_file(path_join(args[2], "client.mbt"), emit_client(api))
+  }
 }

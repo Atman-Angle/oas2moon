@@ -1,6 +1,6 @@
 ///|
-/// Strict in-memory view of the Canonical Client IR consumed by the model
-/// emitter. JSON names, MoonBit names, presence and wire strings all arrive
+/// Strict in-memory view of the Canonical Client IR consumed by the codegen
+/// emitters. JSON names, MoonBit names, presence and wire strings all arrive
 /// precomputed from the Phase 1.5 authority; this module only validates and
 /// copies them.
 
@@ -46,10 +46,90 @@ pub enum ModelIr {
 } derive(Eq, Debug)
 
 ///|
+pub enum ParamLocation {
+  PathLoc
+  QueryLoc
+  HeaderLoc
+} derive(Eq, Debug)
+
+///|
+pub struct ParameterIr {
+  name : String
+  wire_name : String
+  location : ParamLocation
+  type_ref : TypeRef
+  required : Bool
+  nullable : Bool
+  presence : String
+} derive(Eq, Debug)
+
+///|
+pub struct RequestBodyIr {
+  type_ref : TypeRef?
+  required : Bool
+  media_type : String?
+} derive(Eq, Debug)
+
+///|
+pub struct ResponseIr {
+  status : Int
+  type_ref : TypeRef?
+  media_type : String?
+} derive(Eq, Debug)
+
+///|
+pub struct ResponseVariant {
+  status : Int
+  type_ref : TypeRef
+} derive(Eq, Debug)
+
+///|
+pub enum ResponseStrategy {
+  SingleResult(TypeRef)
+  UnitResult
+  ResponseEnum(Array[ResponseVariant])
+  NoContent
+  UnsupportedMediaType(String)
+} derive(Eq, Debug)
+
+///|
+pub struct AuthSchemeIr {
+  name : String
+  kind : String
+  location : String?
+  key_name : String?
+} derive(Eq, Debug)
+
+///|
+pub struct OperationIr {
+  operation_id : String
+  fn_name : String
+  http_method : String
+  path : String
+  tags : Array[String]
+  parameters : Array[ParameterIr]
+  request_body : RequestBodyIr?
+  success_responses : Array[ResponseIr]
+  error_responses : Array[ResponseIr]
+  response_strategy : ResponseStrategy
+  security : Array[String]
+  source_pointer : String
+} derive(Eq, Debug)
+
+///|
 pub struct ApiIr {
   module_name : String
+  title : String
+  version : String
+  servers : Array[String]
+  auth_schemes : Array[AuthSchemeIr]
   models : Array[ModelIr]
+  operations : Array[OperationIr]
 } derive(Eq, Debug)
+
+// ---------------------------------------------------------------------------
+// JSON helpers
+// ---------------------------------------------------------------------------
 
 ///|
 fn require_object(value : Json, location : String) -> Map[String, Json] raise {
@@ -137,6 +217,23 @@ fn optional_string_field(
 }
 
 ///|
+fn optional_type_ref_field(
+  fields : Map[String, Json],
+  key : String,
+  location : String,
+) -> TypeRef? raise {
+  match fields.get(key) {
+    Some(Null) => None
+    Some(value) => Some(parse_type_ref(value, location + "." + key))
+    None => raise Failure(location + ": missing field " + key.escape())
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Type parsing
+// ---------------------------------------------------------------------------
+
+///|
 fn is_known_scalar(name : String) -> Bool {
   name == "String" ||
   name == "Bool" ||
@@ -187,6 +284,10 @@ fn expected_presence(required : Bool, nullable : Bool) -> String {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Model parsing
+// ---------------------------------------------------------------------------
+
 ///|
 fn parse_field(value : Json, location : String) -> FieldIr raise {
   let fields = require_object(value, location)
@@ -199,40 +300,26 @@ fn parse_field(value : Json, location : String) -> FieldIr raise {
   if presence != expected {
     raise Failure(
       location +
-      ": presence " +
+      ": presence mismatch: got " +
       presence.escape() +
-      " does not match required/nullable",
+      ", expected " +
+      expected,
     )
   }
-  if name.length() == 0 {
-    raise Failure(location + ": field name must not be empty")
-  }
-  if wire_name.length() == 0 {
-    raise Failure(location + ": wire_name must not be empty")
-  }
-  {
-    name,
-    wire_name,
-    type_ref: parse_type_ref(
-      require_field(fields, "type", location),
-      location + ".type",
-    ),
-    presence,
-  }
+  let type_value = require_field(fields, "type", location)
+  let type_ref = parse_type_ref(type_value, location + ".type")
+  { name, wire_name, type_ref, presence }
 }
 
 ///|
-fn parse_enum_member(value : Json, location : String) -> EnumMemberIr raise {
+fn parse_enum_member(value : Json, location : String) -> (String, String) raise {
   let pair = require_array(value, location)
-  if pair.length() != 2 {
-    raise Failure(location + ": enum enum_member must be a two-element array")
+  guard pair.length() == 2 else {
+    raise Failure(location + ": enum member must be a 2-element array")
   }
   let name = require_string(pair[0], location + "[0]")
   let wire = require_string(pair[1], location + "[1]")
-  if name.length() == 0 {
-    raise Failure(location + ": enum enum_member name must not be empty")
-  }
-  { name, wire }
+  (name, wire)
 }
 
 ///|
@@ -247,16 +334,16 @@ fn parse_enum(
   let taken_wires : Map[String, Bool] = Map([])
   for index, value in member_values {
     let member_where = location + ".members[" + index.to_string() + "]"
-    let enum_member = parse_enum_member(value, member_where)
-    if taken_names.get(enum_member.name) is Some(_) {
-      raise Failure(member_where + ": duplicate enum enum_member name")
+    let (n, w) = parse_enum_member(value, member_where)
+    if taken_names.get(n) is Some(_) {
+      raise Failure(member_where + ": duplicate enum member name")
     }
-    if taken_wires.get(enum_member.wire) is Some(_) {
+    if taken_wires.get(w) is Some(_) {
       raise Failure(member_where + ": duplicate enum wire value")
     }
-    taken_names[enum_member.name] = true
-    taken_wires[enum_member.wire] = true
-    members.push(enum_member)
+    taken_names[n] = true
+    taken_wires[w] = true
+    members.push({ name: n, wire: w })
   }
   { name, members }
 }
@@ -375,10 +462,299 @@ fn parse_model(value : Json, location : String) -> ModelIr raise {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Operation parsing
+// ---------------------------------------------------------------------------
+
+///|
+fn parse_param_location(loc : String, location : String) -> ParamLocation raise {
+  match loc {
+    "path" => PathLoc
+    "query" => QueryLoc
+    "header" => HeaderLoc
+    _ =>
+      raise Failure(
+        location + ": unsupported parameter location " + loc.escape(),
+      )
+  }
+}
+
+///|
+fn parse_parameter(value : Json, location : String) -> ParameterIr raise {
+  let fields = require_object(value, location)
+  let name = require_string_field(fields, "name", location)
+  let wire_name = require_string_field(fields, "wire_name", location)
+  let loc_str = require_string_field(fields, "location", location)
+  let loc = parse_param_location(loc_str, location + ".location")
+  let required = require_bool_field(fields, "required", location)
+  let nullable = require_bool_field(fields, "nullable", location)
+  let presence = require_string_field(fields, "presence", location)
+  let expected = expected_presence(required, nullable)
+  if presence != expected {
+    raise Failure(
+      location +
+      ": presence mismatch: got " +
+      presence.escape() +
+      ", expected " +
+      expected,
+    )
+  }
+  let type_value = require_field(fields, "type", location)
+  let type_ref = parse_type_ref(type_value, location + ".type")
+  { name, wire_name, location: loc, type_ref, required, nullable, presence }
+}
+
+///|
+fn parse_request_body(value : Json, location : String) -> RequestBodyIr? raise {
+  match value {
+    Null => None
+    _ => {
+      let fields = require_object(value, location)
+      let type_ref = optional_type_ref_field(fields, "type", location)
+      let required = require_bool_field(fields, "required", location)
+      let media_type = optional_string_field(fields, "media_type", location)
+      Some({ type_ref, required, media_type })
+    }
+  }
+}
+
+///|
+fn parse_response(value : Json, location : String) -> ResponseIr raise {
+  let fields = require_object(value, location)
+  let status = match require_field(fields, "status", location) {
+    Number(n, ..) if n == n.trunc() => n.to_int()
+    _ => raise Failure(location + ".status: expected number")
+  }
+  let type_ref = optional_type_ref_field(fields, "type", location)
+  let media_type = optional_string_field(fields, "media_type", location)
+  { status, type_ref, media_type }
+}
+
+///|
+fn parse_responses_array(
+  value : Json,
+  location : String,
+) -> Array[ResponseIr] raise {
+  let items = require_array(value, location)
+  let out : Array[ResponseIr] = []
+  for index, item in items {
+    out.push(parse_response(item, location + "[" + index.to_string() + "]"))
+  }
+  out
+}
+
+///|
+fn parse_response_strategy(
+  value : Json,
+  location : String,
+) -> ResponseStrategy raise {
+  let fields = require_object(value, location)
+  let kind = require_string_field(fields, "kind", location)
+  match kind {
+    "single_result" => {
+      let type_value = require_field(fields, "type", location)
+      SingleResult(parse_type_ref(type_value, location + ".type"))
+    }
+    "unit_result" => UnitResult
+    "no_content" => NoContent
+    "response_enum" => {
+      let variants_value = require_field(fields, "variants", location)
+      let variant_items = require_array(variants_value, location + ".variants")
+      let variants : Array[ResponseVariant] = []
+      for index, vv in variant_items {
+        let vloc = location + ".variants[" + index.to_string() + "]"
+        let vf = require_object(vv, vloc)
+        let status = match require_field(vf, "status", vloc) {
+          Number(n, ..) if n == n.trunc() => n.to_int()
+          _ => raise Failure(vloc + ".status: expected number")
+        }
+        let tv = require_field(vf, "type", vloc)
+        let type_ref = parse_type_ref(tv, vloc + ".type")
+        variants.push({ status, type_ref })
+      }
+      ResponseEnum(variants)
+    }
+    "unsupported_media_type" => {
+      let mt = require_string_field(fields, "media_type", location)
+      UnsupportedMediaType(mt)
+    }
+    _ =>
+      raise Failure(
+        location + ": unsupported response strategy kind " + kind.escape(),
+      )
+  }
+}
+
+///|
+fn parse_strings_array(value : Json, location : String) -> Array[String] raise {
+  let items = require_array(value, location)
+  let out : Array[String] = []
+  for index, item in items {
+    out.push(require_string(item, location + "[" + index.to_string() + "]"))
+  }
+  out
+}
+
+///|
+fn parse_auth_scheme(value : Json, location : String) -> AuthSchemeIr raise {
+  let fields = require_object(value, location)
+  let name = require_string_field(fields, "name", location)
+  let kind = require_string_field(fields, "kind", location)
+  let loc = optional_string_field(fields, "location", location)
+  let key_name = optional_string_field(fields, "key_name", location)
+  { name, kind, location: loc, key_name }
+}
+
+///|
+fn parse_auth_schemes(
+  value : Json,
+  location : String,
+) -> Array[AuthSchemeIr] raise {
+  let items = require_array(value, location)
+  let out : Array[AuthSchemeIr] = []
+  for index, item in items {
+    out.push(parse_auth_scheme(item, location + "[" + index.to_string() + "]"))
+  }
+  out
+}
+
+///|
+fn parse_operation(
+  value : Json,
+  location : String,
+  model_names : Map[String, Bool],
+) -> OperationIr raise {
+  let fields = require_object(value, location)
+  let operation_id = require_string_field(fields, "operation_id", location)
+  let fn_name = require_string_field(fields, "fn_name", location)
+  let http_method = require_string_field(fields, "http_method", location)
+  let path = require_string_field(fields, "path", location)
+  let tags = match fields.get("tags") {
+    Some(tv) => parse_strings_array(tv, location + ".tags")
+    None => []
+  }
+  let parameters : Array[ParameterIr] = []
+  match fields.get("parameters") {
+    Some(pv) => {
+      let pitems = require_array(pv, location + ".parameters")
+      for index, p in pitems {
+        parameters.push(
+          parse_parameter(
+            p,
+            location + ".parameters[" + index.to_string() + "]",
+          ),
+        )
+      }
+    }
+    None => ()
+  }
+  for index, p in parameters {
+    validate_named_type(
+      p.type_ref,
+      location + ".parameters[" + index.to_string() + "].type",
+      model_names,
+    )
+  }
+  let request_body = match fields.get("request_body") {
+    Some(rv) => parse_request_body(rv, location + ".request_body")
+    None => None
+  }
+  match request_body {
+    Some(body) =>
+      match body.type_ref {
+        Some(tr) =>
+          validate_named_type(tr, location + ".request_body.type", model_names)
+        None => ()
+      }
+    None => ()
+  }
+  let success_responses = match fields.get("success_responses") {
+    Some(sv) => parse_responses_array(sv, location + ".success_responses")
+    None => []
+  }
+  let error_responses = match fields.get("error_responses") {
+    Some(ev) => parse_responses_array(ev, location + ".error_responses")
+    None => []
+  }
+  for index, r in success_responses {
+    match r.type_ref {
+      Some(tr) =>
+        validate_named_type(
+          tr,
+          location + ".success_responses[" + index.to_string() + "].type",
+          model_names,
+        )
+      None => ()
+    }
+  }
+  let response_strategy = match fields.get("response_strategy") {
+    Some(rsv) => parse_response_strategy(rsv, location + ".response_strategy")
+    None => raise Failure(location + ": missing field response_strategy")
+  }
+  match response_strategy {
+    SingleResult(tr) =>
+      validate_named_type(tr, location + ".response_strategy.type", model_names)
+    ResponseEnum(variants) =>
+      for index, v in variants {
+        validate_named_type(
+          v.type_ref,
+          location +
+          ".response_strategy.variants[" +
+          index.to_string() +
+          "].type",
+          model_names,
+        )
+      }
+    _ => ()
+  }
+  let security = match fields.get("security") {
+    Some(sv) => parse_strings_array(sv, location + ".security")
+    None => []
+  }
+  let source_pointer = match fields.get("source_pointer") {
+    Some(sp) => require_string(sp, location + ".source_pointer")
+    None => ""
+  }
+  {
+    operation_id,
+    fn_name,
+    http_method,
+    path,
+    tags,
+    parameters,
+    request_body,
+    success_responses,
+    error_responses,
+    response_strategy,
+    security,
+    source_pointer,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Top-level API parsing
+// ---------------------------------------------------------------------------
+
 ///|
 pub fn parse_api(value : Json) -> ApiIr raise {
   let root = require_object(value, "canonical")
   let module_name = require_string_field(root, "module", "canonical")
+  let title = match root.get("title") {
+    Some(t) => require_string(t, "canonical.title")
+    None => ""
+  }
+  let version = match root.get("version") {
+    Some(v) => require_string(v, "canonical.version")
+    None => ""
+  }
+  let servers = match root.get("servers") {
+    Some(sv) => parse_strings_array(sv, "canonical.servers")
+    None => []
+  }
+  let auth_schemes = match root.get("auth_schemes") {
+    Some(av) => parse_auth_schemes(av, "canonical.auth_schemes")
+    None => []
+  }
   let model_values = require_array_field(root, "models", "canonical")
   let models : Array[ModelIr] = []
   let model_names : Map[String, Bool] = Map([])
@@ -398,5 +774,16 @@ pub fn parse_api(value : Json) -> ApiIr raise {
   for model in models {
     validate_model_references(model, model_names)
   }
-  { module_name, models }
+  let operations : Array[OperationIr] = []
+  match root.get("operations") {
+    Some(ov) => {
+      let op_items = require_array(ov, "canonical.operations")
+      for index, op_value in op_items {
+        let op_loc = "canonical.operations[" + index.to_string() + "]"
+        operations.push(parse_operation(op_value, op_loc, model_names))
+      }
+    }
+    None => ()
+  }
+  { module_name, title, version, servers, auth_schemes, models, operations }
 }
