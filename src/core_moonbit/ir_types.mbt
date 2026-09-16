@@ -75,6 +75,29 @@ pub struct ResponseIr {
   media_type : String?
 } derive(Eq, Debug)
 
+///| One variant in a response enum strategy.
+pub struct ResponseVariant {
+  status : Int
+  type_ref : TypeRef
+} derive(Eq, Debug)
+
+///| Computed response strategy for an operation.
+///
+/// Determined during lowering from the success_responses array.
+/// Codegen emitters read this to decide the operation's return type shape.
+pub enum ResponseStrategy {
+  /// Single effective schema -> direct typed result (e.g. Pet)
+  SingleResult(TypeRef)
+  /// 204 only (no body) -> Unit
+  UnitResult
+  /// Multiple different success schemas -> generated response enum
+  ResponseEnum(Array[ResponseVariant])
+  /// No body content in any success response
+  NoContent
+  /// Unsupported media type - must not silently generate wrong wire code
+  UnsupportedMediaType(String)
+} derive(Eq, Debug)
+
 ///| Security scheme in the Canonical IR.
 pub struct AuthSchemeIr {
   name : String
@@ -94,6 +117,7 @@ pub struct OperationIr {
   request_body : RequestBodyIr?
   success_responses : Array[ResponseIr]
   error_responses : Array[ResponseIr]
+  response_strategy : ResponseStrategy
   security : Array[String]
   source : SourceLocation
 } derive(Eq, Debug)

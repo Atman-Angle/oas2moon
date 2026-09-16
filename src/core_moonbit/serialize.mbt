@@ -190,6 +190,57 @@ fn responses_to_json(responses : Array[ResponseIr]) -> Json {
 }
 
 ///| Serialize an OperationIr to JSON.
+
+
+///| Serialize a ResponseVariant to JSON.
+fn variant_to_json(v : ResponseVariant) -> Json {
+  Json::object(
+    Map([
+      ("status", Json::number(v.status.to_double())),
+      ("type", type_ref_to_json(v.type_ref)),
+    ]),
+  )
+}
+
+///| Serialize ResponseStrategy to JSON.
+fn strategy_to_json(s : ResponseStrategy) -> Json {
+  match s {
+    SingleResult(tr) => Json::object(
+      Map([
+        ("kind", Json::string("single_result")),
+        ("type", type_ref_to_json(tr)),
+      ]),
+    )
+    UnitResult => Json::object(
+      Map([
+        ("kind", Json::string("unit_result")),
+      ]),
+    )
+    ResponseEnum(variants) => {
+      let out : Array[Json] = []
+      for v in variants {
+        out.push(variant_to_json(v))
+      }
+      Json::object(
+        Map([
+          ("kind", Json::string("response_enum")),
+          ("variants", Json::array(out)),
+        ]),
+      )
+    }
+    NoContent => Json::object(
+      Map([
+        ("kind", Json::string("no_content")),
+      ]),
+    )
+    UnsupportedMediaType(mt) => Json::object(
+      Map([
+        ("kind", Json::string("unsupported_media_type")),
+        ("media_type", Json::string(mt)),
+      ]),
+    )
+  }
+}
 fn operation_to_json(op : OperationIr) -> Json {
   Json::object(
     Map([
@@ -202,6 +253,7 @@ fn operation_to_json(op : OperationIr) -> Json {
       ("request_body", request_body_to_json(op.request_body)),
       ("success_responses", responses_to_json(op.success_responses)),
       ("error_responses", responses_to_json(op.error_responses)),
+      ("response_strategy", strategy_to_json(op.response_strategy)),
       ("security", strings_to_json(op.security)),
       ("source_pointer", Json::string(op.source.pointer)),
     ]),

@@ -215,6 +215,7 @@ fn parse_operation(op_json : Json) -> OperationIr {
     tags.push(text(t))
   }
   let fn_name = operation_fn_name(operation_id)
+  let strategy = determine_response_strategy(success)
   {
     operation_id,
     fn_name,
@@ -225,11 +226,61 @@ fn parse_operation(op_json : Json) -> OperationIr {
     request_body: rb,
     success_responses: success,
     error_responses: errors,
+    response_strategy: strategy,
     security,
     source: { pointer: "" },
   }
 }
 
+
+
+///| Check if a media type is supported for JSON body responses.
+fn is_supported_media_type(media_type : String?) -> Bool {
+  match media_type {
+    Some(mt) => mt == "application/json"
+    None => true
+  }
+}
+
+///| Determine the response strategy from success responses.
+fn determine_response_strategy(responses : Array[ResponseIr]) -> ResponseStrategy {
+  if responses.length() == 0 { return NoContent }
+  let all_204 = { let mut ok = true; for r in responses { if r.status != 204 { ok = false } }; ok }
+  if all_204 { return UnitResult }
+  let with_body : Array[ResponseIr] = []
+  for r in responses {
+    match r.type_ref {
+      Some(_) => with_body.push(r)
+      None => ()
+    }
+  }
+  if with_body.length() == 0 { return NoContent }
+  for r in with_body {
+    if !is_supported_media_type(r.media_type) {
+      let mt_msg = match r.media_type {
+        Some(mt) => mt
+        None => "unknown"
+      }
+      return UnsupportedMediaType(mt_msg)
+    }
+  }
+  let first_type = with_body[0].type_ref
+  let all_same = { let mut ok = true; for i = 1; i < with_body.length(); i = i + 1 { if with_body[i].type_ref != first_type { ok = false } }; ok }
+  if all_same {
+    match first_type {
+      Some(t) => return SingleResult(t)
+      None => return NoContent
+    }
+  }
+  let variants : Array[ResponseVariant] = []
+  for r in with_body {
+    match r.type_ref {
+      Some(t) => variants.push({ status: r.status, type_ref: t })
+      None => ()
+    }
+  }
+  ResponseEnum(variants)
+}
 ///| Sort schema names deterministically.
 fn sorted_names(names : Array[String]) -> Array[String] {
   let out : Array[String] = []
