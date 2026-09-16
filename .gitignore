@@ -48,3 +48,5 @@ Thumbs.db
 src/codegen_moonbit/_build/
 src/codegen_moonbit/.mooncakes/
 src/codegen_moonbit/spike/build/
+
+src/_work/
