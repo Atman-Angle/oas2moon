@@ -77,30 +77,56 @@ Client configuration owns auth. Supported V1 schemes are API key, Bearer, and Ba
 
 ## 7. CLI exit codes
 
-- `0`: generation completed and all requested verification steps passed;
-- `2`: usage/argument/input-file error;
-- `3`: invalid or unsupported OpenAPI contract;
-- `4`: generation or output I/O failure;
-- `5`: generated package verification failure (`moon fmt`, `moon check`, or configured tests);
-- `6`: deterministic-output verification failure.
+These are the codes `src/oas2moon/cli.py` actually returns; they are covered by
+`tests/test_t10_cli.py`.
 
-Diagnostics go to stderr; successful summary goes to stdout. Exact CLI parser API is **SPIKE-T10**.
+- `0`: success;
+- `1`: input file missing, or its extension is not `.json`/`.yaml`/`.yml`;
+- `2`: invalid MoonBit module name;
+- `3`: frontend adapter failure (invalid or unparseable OpenAPI document);
+- `5`: pipeline failure after the frontend stage — IR building, codegen, or the
+  trailing `moon fmt`;
+- `6`: `--out` exists and is a file rather than a directory.
+
+`4` is currently unused; it was reserved in an earlier draft for a distinct
+"unsupported OpenAPI contract" outcome, but unsupported documents are reported
+by the frontend adapter and therefore return `3`. If a separate code is ever
+introduced, this section and the CLI must change together.
+
+Diagnostics go to stderr; the successful summary goes to stdout. The exact CLI
+parser API was **SPIKE-T10**.
 
 ## 8. Generated directory structure
 
-`--out <dir>` is the complete generated package root. Generation writes only deterministic, owned files below it:
+`--out <dir>` is the complete generated package root. Generation writes only deterministic, owned files directly below it — a **flat** layout, with no `model/`, `operation/`, or `runtime/` subdirectories:
 
 ```text
 <out>/
-  moon.mod.json
-  README.md
-  runtime/        # only if packaging runtime locally is selected
-  model/          # generated models
-  operation/      # generated operation/request/response types
-  client.mbt      # public client and operation methods
+  moon.mod          # module name + moonbitlang/async dependency when needed
+  moon.pkg          # imports; owned by the codegen, never rewritten downstream
+  models.mbt        # generated structs, enums, presence helpers, JSON codecs
+  client.mbt        # public client and every generated operation method
+  runtime.mbt       # SdkError, Request/Response, Transport, CaptureTransport
+  config.mbt        # base URL, credentials
+  encoding.mbt      # path/query/header serialization
+  http_transport.mbt # the only file that touches moonbitlang/async/http
 ```
 
-The exact module layout may be simplified by the emitter, but file ownership and stable naming must be documented before implementation. Existing unrelated files must not be deleted. **SPIKE-T06** confirms the final MoonBit package layout.
+`client.mbt` is emitted only when the API has operations; `moonbitlang/core/string`
+is imported only when the API uses `Int64`.
+
+**Why flat, and why the runtime is inlined rather than referenced as a package.**
+Inlining makes a generated SDK self-contained: one directory compiles on its own,
+and there is no version skew between a published `oas2moon/runtime` package and
+the code that a given generator revision emitted. The cost is explicit and
+accepted: **a runtime fix does not reach an existing SDK until that SDK is
+regenerated**, because there is no shared dependency to update in place. If the
+runtime is ever published and consumed as a dependency instead, this section and
+the emitter must change together.
+
+File ownership and stable naming are fixed by this section. Existing unrelated
+files must not be deleted. **SPIKE-T06** and the T11 demo (`demo/petstore/run_demo.ps1`,
+which hashes two independent generations) confirm the layout.
 
 ## 9. Diagnostics
 
@@ -119,3 +145,40 @@ Sort all unordered source maps by UTF-8 bytewise key order. Preserve array order
 ## 11. Evidence and change control
 
 Every contract item below has evidence status in `EVIDENCE_MATRIX.md`. A `SPIKE` item is not an implementation license: first create the smallest executable verification, record the observed API/output, then promote the decision with a dated amendment.
+
+## 12. Generated operation call shape
+
+Generated operation methods follow the convention the MoonBit ecosystem uses for
+generated clients:
+
+- **required parameters are positional**;
+- **optional parameters are labelled** (`name? : T`);
+- **operations are `async fn`** and report failure by raising `SdkError`
+  rather than returning `Result`;
+- `Client::new` takes labelled options only, including credentials
+  (`bearer_token`, `basic_username`/`basic_password`,
+  `api_key_name`/`api_key_value`/`api_key_location`) and an optional
+  `capture : CaptureTransport` used by hermetic tests.
+
+So the generated call shape is
+
+```moonbit
+let pet = client.get_pet_by_id(42L, "trace-id", verbose=true)
+```
+
+and not `client.get_pet_by_id(id=42)`, which MoonBit rejects for a parameter
+declared as positional.
+
+**Evidence.** `moonbit-community/elasticsearch.mbt` — the reference
+implementation identified in `SPIKE_REPORT.md` — generates
+`pub fn AsyncSearchDeleteRequest::new(id : String, query? : ... = ...)` and
+`pub async fn Client::async_search_delete(self : Client, request : ...)`, i.e.
+positional required arguments, labelled optional arguments, and async methods.
+The same shape is reproduced and executed by the T11 Petstore demo, which
+compiles the generated package with `moon fmt` + `moon check --deny-warn`,
+runs its generated tests with `moon test`, and drives the client against a real
+local HTTP server.
+
+**Consequences.** `PROJECT_SPEC.md` and `DEVELOPMENT_SPEC.md` samples were
+updated to this shape; the earlier `Result`-returning sketches were never
+implemented and are not part of the contract.

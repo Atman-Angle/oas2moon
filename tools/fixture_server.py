@@ -66,7 +66,10 @@ class PetstoreHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", "0")
         self.end_headers()
         if body:
-            self.wfile.write(body)
+            try:
+                self.wfile.write(body)
+            except ConnectionError:
+                pass
 
     def _dispatch(self, method: str) -> None:
         parsed = urlparse(self.path)
@@ -214,7 +217,106 @@ class PetstoreHandler(BaseHTTPRequestHandler):
         _check("delete.path")
         self._respond(204, None)
 
-    def do_GET(self) -> None:  # noqa: N802
+
+    def _handle_put(self, parsed, body, record) -> None:
+        if not self._auth_ok():
+            return
+        prefix = '/pets/'
+        if not parsed.path.startswith(prefix):
+            _fail('unexpected path for PUT: ' + parsed.path)
+            self._respond(404, json.dumps({'error': 'not found'}))
+            return
+        raw_id = parsed.path[len(prefix):]
+        try:
+            int(raw_id)
+        except ValueError:
+            _fail('PUT path param is not an integer: ' + repr(raw_id))
+            self._respond(400, json.dumps({'error': 'bad path parameter'}))
+            return
+        _check('put.path_parameter')
+        ct = self.headers.get('Content-Type') or ''
+        if not ct.startswith('application/json'):
+            _fail('PUT Content-Type mismatch: ' + repr(ct))
+            self._respond(415, json.dumps({'error': 'bad media type'}))
+            return
+        _check('put.content_type')
+        try:
+            parsed_body = json.loads(body)
+        except ValueError as exc:
+            _fail('PUT body is not JSON: ' + repr(exc))
+            self._respond(400, json.dumps({'error': 'bad body'}))
+            return
+        if not isinstance(parsed_body, dict):
+            _fail('PUT body is not a JSON object')
+            self._respond(400, json.dumps({'error': 'bad body'}))
+            return
+        _check('put.json_body')
+        record['parsed_body'] = parsed_body
+        for key in ('id', 'name', 'status'):
+            if key not in parsed_body:
+                _fail('PUT body is missing required key ' + repr(key))
+        if parsed_body.get('status') not in ('available', 'pending', 'sold'):
+            _fail('PUT body has an unknown enum value: ' + repr(parsed_body.get('status')))
+        _check('put.body_fields')
+        self._respond(200, json.dumps(parsed_body, ensure_ascii=False))
+
+    def _handle_patch(self, parsed, body, record) -> None:
+        if not self._auth_ok():
+            return
+        prefix = '/pets/'
+        if not parsed.path.startswith(prefix):
+            _fail('unexpected path for PATCH: ' + parsed.path)
+            self._respond(404, json.dumps({'error': 'not found'}))
+            return
+        raw_id = parsed.path[len(prefix):]
+        try:
+            pet_id = int(raw_id)
+        except ValueError:
+            _fail('PATCH path param is not an integer: ' + repr(raw_id))
+            self._respond(400, json.dumps({'error': 'bad path parameter'}))
+            return
+        _check('patch.path_parameter')
+        if body:
+            ct = self.headers.get('Content-Type') or ''
+            if not ct.startswith('application/json'):
+                _fail('PATCH Content-Type mismatch: ' + repr(ct))
+                self._respond(415, json.dumps({'error': 'bad media type'}))
+                return
+            _check('patch.content_type_with_body')
+            try:
+                parsed_body = json.loads(body)
+            except ValueError as exc:
+                _fail('PATCH body is not JSON: ' + repr(exc))
+                self._respond(400, json.dumps({'error': 'bad body'}))
+                return
+            if not isinstance(parsed_body, dict):
+                _fail('PATCH body is not a JSON object')
+                self._respond(400, json.dumps({'error': 'bad body'}))
+                return
+            _check('patch.json_body')
+            record['parsed_body'] = parsed_body
+            if parsed_body.get('status') not in (None, 'available', 'pending', 'sold'):
+                _fail('PATCH body has an unknown enum value: ' + repr(parsed_body.get('status')))
+        else:
+            _check('patch.no_body')
+        payload = json.dumps({'id': pet_id, 'name': 'Patched', 'status': 'available'}, ensure_ascii=False)
+        self._respond(200, payload)
+
+    def do_GET(self) -> None:
+        self._dispatch('GET')
+
+    def do_POST(self) -> None:
+        self._dispatch('POST')
+
+    def do_DELETE(self) -> None:
+        self._dispatch('DELETE')
+
+    def do_PUT(self) -> None:
+        self._dispatch('PUT')
+
+    def do_PATCH(self) -> None:
+        self._dispatch('PATCH')
+  # noqa: N802
         self._dispatch("GET")
 
     def do_POST(self) -> None:  # noqa: N802

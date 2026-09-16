@@ -42,12 +42,9 @@ def gen_sdk(out_dir, data, test_code=None):
     write_file(out_dir / "canonical_ir.json", json.dumps(data, indent=2) + "\n")
     r = run(["moon","run",".","--target","native","--",str(out_dir/"canonical_ir.json"),str(out_dir)], cwd=CODEGEN_DIR)
     if r.returncode != 0: return False
-    write_file(out_dir / "moon.pkg", 'import {\n  "moonbitlang/core/encoding/utf8",\n  "moonbitlang/core/json",\n}\n\nsupported_targets = "+native"\n')
-    write_file(out_dir / "moon.mod", 'name = "oas2moon/t03_petstore"\n\nversion = "0.1.0"\n\npreferred_target = "native"\n')
     # Normalize line endings from source for determinism
     for fn in ["runtime.mbt", "config.mbt", "encoding.mbt"]:
         write_file(out_dir / fn, read_file_normalized(RUNTIME_DIR / fn))
-    write_file(out_dir / "client.mbt", gen_client(data))
     if test_code is not None:
         write_file(out_dir / "t03_test.mbt", test_code)
     return True
@@ -110,15 +107,6 @@ def gen_client(data):
         lines.append("")
     return "\n".join(lines)
 
-def type_to_moon(tr, models):
-    model_names = {m.get("name","") for m in models}
-    if not tr: return "Unit"
-    kind = tr.get("kind",""); name = tr.get("name",""); item = tr.get("item")
-    if kind == "scalar":
-        return {"String":"String","Int":"Int","Int64":"Int64","Bool":"Bool","Double":"Double","Json":"Json"}.get(name,"String")
-    if kind == "named": return name if name in model_names else "Json"
-    if kind == "array": return f"Array[{type_to_moon(item, models) if item else 'Json'}]"
-    return "String"
 
 def test_all():
     print("="*60)

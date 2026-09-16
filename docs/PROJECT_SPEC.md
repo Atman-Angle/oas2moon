@@ -91,11 +91,17 @@ target:
 ```moonbit
 let client = @petstore.Client::new(
   base_url="https://api.example.com",
+  bearer_token=token,
 )
 
-let pet = client.get_pet_by_id(id=42)
+let pet = client.get_pet_by_id(42L, "trace-id", verbose=true)
 println(pet.name)
 ```
+
+Required parameters are positional and optional parameters are labelled
+(`name? : T`), which is the convention the MoonBit ecosystem uses for
+generated clients. Operation methods are `async` and report failure by raising
+`SdkError`; see `docs/DECISIONS.md` §12 for the evidence behind both choices.
 
 Avoid forcing users to manually construct raw URL strings, `Map[String, String]`, or `Json` when the contract has enough type information.
 

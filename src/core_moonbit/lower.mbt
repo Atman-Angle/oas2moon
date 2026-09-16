@@ -190,7 +190,7 @@ fn parse_model(schema_json : Json, model_name : String) -> ModelIr {
 
 ///|
 /// Parse an operation JSON node into an OperationIr.
-fn parse_operation(op_json : Json) -> OperationIr {
+fn parse_operation(op_json : Json, auth_kind_map : Map[String, String]) -> OperationIr {
   let operation_id = text(get(op_json, "operationId"))
   let method_str = text(get(op_json, "method"))
   let path = text(get(op_json, "path"))
@@ -245,6 +245,16 @@ fn parse_operation(op_json : Json) -> OperationIr {
     }
     _ => None
   }
+  // Compute body parameter name from the type or default to "body"
+  let body_name = match rb {
+    Some(body) =>
+      match body.type_ref {
+        Some(Named(name)) => Some(unique(snake(name), taken_params))
+        Some(_) => Some(unique("body", taken_params))
+        None => None
+      }
+    None => None
+  }
   // Parse responses
   let success : Array[ResponseIr] = []
   let errors : Array[ResponseIr] = []
@@ -266,13 +276,16 @@ fn parse_operation(op_json : Json) -> OperationIr {
       errors.push(response)
     }
   }
-  // Parse security
+  // Parse security using auth_kind_map
   let security : Array[String] = []
   for alt in arr(get(op_json, "security")) {
     let names_arr = arr(alt)
     for name_json in names_arr {
       let name = text(name_json)
-      let label = if name == "bearerAuth" { "bearer" } else { name }
+      let label = match auth_kind_map.get(name) {
+        Some(kind) => kind
+        None => name
+      }
       if !security.contains(label) {
         security.push(label)
       }
@@ -293,6 +306,7 @@ fn parse_operation(op_json : Json) -> OperationIr {
     tags,
     parameters: parsed_params,
     request_body: rb,
+    body_name,
     success_responses: success,
     error_responses: errors,
     response_strategy: strategy,
@@ -463,12 +477,16 @@ pub fn lower(root : Json, module_name : String) -> ApiIr {
   for s in arr(get(root, "servers")) {
     servers.push(text(s))
   }
-  // Auth schemes
+  // Auth schemes + auth_kind_map
   let auth_schemes : Array[AuthSchemeIr] = []
+  let auth_kind_map : Map[String, String] = Map([])
   for name, scheme in obj(get(root, "securitySchemes")) {
     let kind = if text(get(scheme, "type")) == "http" &&
       text(get(scheme, "scheme")) == "bearer" {
       "bearer"
+    } else if text(get(scheme, "type")) == "http" &&
+      text(get(scheme, "scheme")) == "basic" {
+      "basic"
     } else {
       text(get(scheme, "type"))
     }
@@ -483,6 +501,7 @@ pub fn lower(root : Json, module_name : String) -> ApiIr {
       _ => None
     }
     auth_schemes.push({ name, kind, location, key_name })
+    auth_kind_map[name] = kind
   }
   // Models
   let models : Array[ModelIr] = []
@@ -502,7 +521,7 @@ pub fn lower(root : Json, module_name : String) -> ApiIr {
   let sorted_ops = sort_operations(ops)
   let operations : Array[OperationIr] = []
   for op in sorted_ops {
-    operations.push(parse_operation(op))
+    operations.push(parse_operation(op, auth_kind_map))
   }
   {
     module_name,

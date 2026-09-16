@@ -1,0 +1,56 @@
+name: demo-windows
+
+# The Petstore end-to-end demo is the project's product gate: it runs the real
+# CLI, compiles the generated package with the real MoonBit toolchain, and
+# drives the generated client against a real local HTTP server. Running it on a
+# Windows runner is the evidence behind every Windows claim in the README.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  petstore-e2e:
+    name: Petstore E2E (Windows)
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install MoonBit CLI
+        shell: pwsh
+        run: |
+          irm https://cli.moonbitlang.com/install/powershell.ps1 | iex
+          "$env:USERPROFILE\.moon\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Put the MSVC toolchain on PATH
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Verify toolchain
+        shell: pwsh
+        run: |
+          moon --version
+          python --version
+
+      - name: Run the Petstore end-to-end demo
+        shell: pwsh
+        run: pwsh -NoProfile -File demo/petstore/run_demo.ps1
+
+      - name: Upload demo logs and wire capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: petstore-demo-evidence
+          path: |
+            demo/petstore/_out/logs
+            demo/petstore/_out/server_capture.json
+            demo/petstore/_out/canonical.json
+          if-no-files-found: warn

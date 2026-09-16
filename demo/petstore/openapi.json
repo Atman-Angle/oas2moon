@@ -1,0 +1,267 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Spike Petstore",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:18080"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      },
+      "basicAuth": {
+        "type": "http",
+        "scheme": "basic"
+      },
+      "apiKeyHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Api-Key"
+      },
+      "apiKeyQuery": {
+        "type": "apiKey",
+        "in": "query",
+        "name": "api_key"
+      }
+    },
+    "schemas": {
+      "Pet": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "status"
+        ],
+        "properties": {
+          "owner": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PetStatus"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "nickname": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "PetStatus": {
+        "type": "string",
+        "enum": [
+          "available",
+          "pending",
+          "sold"
+        ]
+      },
+      "AuthEcho": {
+        "type": "object",
+        "required": [
+          "scheme"
+        ],
+        "properties": {
+          "scheme": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/pets/{id}": {
+      "get": {
+        "operationId": "getPetById",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "verbose",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "X-Trace",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pet"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pets": {
+      "post": {
+        "operationId": "addPet",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Pet"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pet"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deletePet",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        }
+      }
+    },
+    "/auth/bearer": {
+      "get": {
+        "operationId": "checkBearerAuth",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "credential accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthEcho"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/basic": {
+      "get": {
+        "operationId": "checkBasicAuth",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "credential accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthEcho"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/api-key-header": {
+      "get": {
+        "operationId": "checkApiKeyHeader",
+        "security": [
+          {
+            "apiKeyHeader": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "credential accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthEcho"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/api-key-query": {
+      "get": {
+        "operationId": "checkApiKeyQuery",
+        "security": [
+          {
+            "apiKeyQuery": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "credential accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthEcho"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
