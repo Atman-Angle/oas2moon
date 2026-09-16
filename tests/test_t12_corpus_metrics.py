@@ -5,6 +5,8 @@ guard the *rules* rather than the current numbers:
 
 - a remote source is only measurable when it is pinned;
 - the metrics engine reports generated, refused and pending specs correctly;
+- the committed real-world corpus covers Petstore, GitHub, OpenAI and one
+  conventional REST API subset;
 - its output is byte-deterministic;
 - ``docs/CORPUS_REPORT.md`` is exactly what a fresh run produces, so no number
   in it can be hand-edited or stale.
@@ -98,16 +100,26 @@ def test_manifest_entries_are_pinned_or_pending() -> None:
 
 
 def test_local_corpus_is_measurable() -> None:
-    """The committed corpus must contain at least one measurable real-world entry."""
+    """The committed corpus must contain every required real-world subset."""
     sources = load_manifest()["sources"]
-    measurable = [
-        entry
+    measurable = {
+        entry["id"]: entry
         for entry in sources
         if entry.get("role") == "real-world"
         and entry.get("kind") == "local"
         and (ROOT / str(entry.get("path", ""))).is_file()
-    ]
-    assert measurable, "no measurable real-world corpus entry: the report is empty"
+    }
+    assert {
+        "petstore/openapi.json",
+        "github-rest/subset",
+        "openai/subset",
+        "jsonplaceholder/subset",
+    }.issubset(measurable), measurable.keys()
+    assert not [
+        entry["id"]
+        for entry in sources
+        if entry.get("role") == "real-world" and entry.get("status") == "pending"
+    ], "real-world corpus still contains pending entries"
 
 
 def test_metrics_report_generated_refused_and_pending() -> None:

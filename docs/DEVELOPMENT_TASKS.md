@@ -330,23 +330,27 @@ compile_pass
 - **只把 `role: real-world` 的条目算进头部数字**。本地负例和"同一文档的 YAML 编码"
   记为 `control`，单独成块，绝不并入真实语料总量。
 
-**骨架（2026-09-17，`feat/t12-corpus-metrics`）**：
+**实现（2026-09-17，`feat/t12-corpus-metrics`）**：
 
-- `corpus/sources.json`：manifest，条目分 `local` / `remote` / `planned` 三种；remote
-  必须 pinned `commit` + `sha256` 才能被测量，否则只能是 pending；
+- `corpus/sources.json`：manifest，条目分 `local` / `remote` / `planned` 三种；当前
+  发布数字只来自已提交的 `local` subset；remote 必须 pinned `commit` + `sha256`
+  才能被测量，否则只能是 pending；
 - `corpus/README.md`：布局、provenance/license 规则、如何新增语料；
 - `tools/corpus_metrics.py`：跑 frontend → CLI → fmt/check，输出确定性 JSON 与 markdown；
 - `docs/CORPUS_REPORT.md`：由脚本生成，禁止手改数字；
-- `tests/test_t12_corpus_metrics.py`（5 项）：manifest 规则、generated/rejected/pending
-  计价、输出字节确定性，以及"提交的报告必须等于重新生成的结果"防漂移检查。
+- `tests/test_t12_corpus_metrics.py`（5 项）：manifest 规则、四个真实语料条目、
+  generated/rejected/pending 计价、输出字节确定性，以及"提交的报告必须等于重新生成
+  的结果"防漂移检查。
 
-当前实测（见 `docs/CORPUS_REPORT.md`）：全部 7 条（3 条 pending），real-world 4 条
-（3 条 pending）；Petstore 3 个 operation 全部支持且编译通过；`oneof` 负例 1 个
-operation 被拒，原因为 `unsupported.keyword@#/components/schemas/Choice/oneOf`。
+当前实测（见 `docs/CORPUS_REPORT.md`）：全部 7 条，6 条生成成功、1 条控制负例被拒；
+real-world 4 条（Petstore、GitHub REST subset、OpenAI subset、JSONPlaceholder
+subset）全部生成并编译通过。real-world：`operations_total=9`、
+`operations_supported=9`、`operations_rejected=0`、`compile_pass=4/4`。`oneof`
+控制负例 1 个 operation 被拒，原因为
+`unsupported.keyword@#/components/schemas/Choice/oneOf`。
 
-**尚未完成**：GitHub REST subset、OpenAI subset、第三个传统 REST subset 目前都是
-`remote/pending` 或 `planned`，**没有任何真实数字**。因此 T12 不能标记 DONE，也不能
-引用任何 GitHub/OpenAI 支持率。
+**范围声明**：GitHub/OpenAI 是 deliberately small curated subset，不是完整 API
+支持率；报告只能引用 subset 指标，不能引用完整 GitHub/OpenAI 支持率。
 
 **出口**：所有声称支持的 case 均生成并编译；失败原因可追溯。
 
@@ -479,8 +483,8 @@ T13 → T12 → T14 → T15
 | T09 | 鉴权 | DONE | T11 在真实 server 上验证 bearer/basic/apiKey header/apiKey query；已在 `main` |
 | T10 | CLI | DONE | `tests/test_t10_cli.py`（含并发 scratch-dir 回归测试）；`demo/petstore/run_demo.ps1` 走真实 CLI；已在 `main` |
 | T11 | E2E Demo | DONE | `pwsh -NoProfile -File demo/petstore/run_demo.ps1`：11/11 通过；`python -m pytest tests -q`：31 项通过 |
-| T12 | Corpus | IN_PROGRESS | 骨架已建立：`corpus/sources.json`、`corpus/README.md`、`tools/corpus_metrics.py`、`docs/CORPUS_REPORT.md`、`tests/test_t12_corpus_metrics.py`（5 项）；GitHub/OpenAI/第三个真实 subset 仍 pending，无真实数字，故未完成 |
-| T13 | Determinism | DONE | `tests/test_t13_determinism.py`（33 项）：语料双生成字节一致、spec/normalized model 键序反转不变、IR 顺序不变、诊断有序、无时间戳/随机 ID/绝对路径；CI 已加 determinism gate；分支 `feat/t13-determinism-hardening` |
+| T12 | Corpus | DONE | `corpus/sources.json`、`tools/corpus_metrics.py`、`docs/CORPUS_REPORT.md`、`tests/test_t12_corpus_metrics.py`（5 项）；Petstore + GitHub REST subset + OpenAI subset + JSONPlaceholder subset：real-world `9/9` operations supported，`compile_pass=4/4` |
+| T13 | Determinism | DONE | `tests/test_t13_determinism.py`（36 项）：语料双生成字节一致、spec/normalized model 键序反转不变、IR 顺序不变、诊断有序、无时间戳/随机 ID/绝对路径；CI 已加 determinism gate；分支 `feat/t13-determinism-hardening` |
 | T14 | CI | IN_PROGRESS | `.github/workflows/demo-windows.yml` 已加入并做 YAML 校验；尚未在 GitHub runner 上实际跑过 |
 | T15 | Release | TODO | README、支持矩阵、FAQ 与答辩脚本 |
 
@@ -501,9 +505,8 @@ wire 值（例如 `"PetStatus::Available"`）。这违反了 V1 的 local `$ref`
 `"$ref": "#/components/schemas/PetStatus"`，T11 demo 也持续验证 local `$ref`
 可生成并编译。
 
-当前已合入 `main` 的任务链为 T06、T07、T09、T10、T11；T13 已完成，待在
-`feat/t13-determinism-hardening` 上评审合并。剩余工作是 T12 corpus/metrics、
-T14 GitHub CI 实跑和 T15 发布文档。
+当前已合入 `main` 的任务链为 T06、T07、T09、T10、T11、T13；T12 已在
+`feat/t12-corpus-metrics` 上完成。剩余工作是 T14 GitHub CI 实跑和 T15 发布文档。
 
 ## 7. 风险与升级规则
 

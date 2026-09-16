@@ -143,7 +143,7 @@ implemented and exercised end to end on Windows.
 | T09 | Authentication (bearer/basic/apiKey) | ✅ COMPLETE |
 | T10 | CLI `generate` | ✅ COMPLETE |
 | T11 | Petstore end-to-end demo | ✅ COMPLETE |
-| T12 | Real-world corpus & metrics | 🔄 IN PROGRESS (harness done, 3 subsets pending) |
+| T12 | Real-world corpus & metrics | ✅ COMPLETE |
 | T13 | Determinism hardening (corpus-wide) | ✅ COMPLETE |
 | T14 | Cross-platform CI | 🔄 IN PROGRESS |
 | T15 | Release documentation | ⬜ NOT STARTED |
@@ -175,7 +175,7 @@ The claim above is backed by the demo, not by inspection:
 
 ```pwsh
 pwsh -NoProfile -File demo/petstore/run_demo.ps1     # 11/11 checks, exit 0
-python -m pytest tests -q                            # 69 passed
+python -m pytest tests -q                            # 72 passed
 ```
 
 The demo generates through the real CLI, compiles the generated package, runs
@@ -184,12 +184,11 @@ server that validates CRUD, all four auth schemes, and the 404/401/configuration
 error paths on the wire. Logs and the raw capture land in
 `demo/petstore/_out/`.
 
-### What is not yet implemented
+### Remaining limits and caveats
 
-- **Real-world corpus**: the manifest, metrics harness and report exist
-  (`corpus/`, `tools/corpus_metrics.py`, `docs/CORPUS_REPORT.md`), but the
-  GitHub REST, OpenAI and third-party subsets are still pending, so no
-  real-world support rate is claimed yet.
+- **Real-world corpus breadth**: T12 now measures Petstore, a GitHub REST
+  subset, an OpenAI subset and a JSONPlaceholder subset. These are deliberately
+  small V1-compatible subsets, not claims of full GitHub/OpenAI coverage.
 - **Cross-platform CI**: `.github/workflows/demo-windows.yml` runs the demo on
   Windows runners but has not yet executed on GitHub; there is no Linux job yet.
 - **Response enums and `UnsupportedMediaType`** are modelled in the IR but have

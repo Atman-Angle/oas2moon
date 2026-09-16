@@ -32,13 +32,16 @@ Legend: **FROZEN** = documented contract; **SPIKE** = must be verified before im
 - Capture-vs-network split: one generated method body serves both, selected by
   whether `Client::new` received a `capture` transport.
 
+## Resolved by T12
+
+- Real-world subset metrics: Petstore, a GitHub REST subset, an OpenAI subset
+  and a JSONPlaceholder subset are measured through `tools/corpus_metrics.py`;
+  see `docs/CORPUS_REPORT.md` for the exact counts.
+- Scope honesty: the report and README state these are curated subset metrics,
+  not full GitHub/OpenAI support claims.
+
 ## Known unresolved evidence gaps
 
-- T12 has the manifest, metrics harness and generated report
-  (`corpus/sources.json`, `tools/corpus_metrics.py`, `docs/CORPUS_REPORT.md`),
-  but the GitHub REST, OpenAI and third-party subsets are still
-  `remote/pending` / `planned`. Only the Petstore entry has been measured, so no
-  real-world support rate may be quoted yet.
 - T14 has a Windows workflow file, but it has not yet run on GitHub and there is
   no Linux job.
 - Response enums and `UnsupportedMediaType` are modeled but lack an end-to-end

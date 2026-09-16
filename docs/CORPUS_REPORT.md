@@ -23,30 +23,30 @@ contributes 0 supported operations. Headline claims must come from the
 
 ```text
 specs_total            7
-specs_generated        3
+specs_generated        6
 specs_rejected         1
 specs_error            0
-specs_pending          3
-operations_total       8
-operations_supported   7
+specs_pending          0
+operations_total       14
+operations_supported   13
 operations_rejected    1
 operations_dropped     0
-compile_pass           3/3
+compile_pass           6/6
 ```
 
 ### Real-world specs only
 
 ```text
 specs_total            4
-specs_generated        1
+specs_generated        4
 specs_rejected         0
 specs_error            0
-specs_pending          3
-operations_total       3
-operations_supported   3
+specs_pending          0
+operations_total       9
+operations_supported   9
 operations_rejected    0
 operations_dropped     0
-compile_pass           1/1
+compile_pass           4/4
 ```
 
 ## Per spec
@@ -55,11 +55,11 @@ compile_pass           1/1
 |---|---|---|---|---|---|---|---|
 | `control/scan-false-positive.json` | control | generated | 1 | 1 | 0 | pass | - |
 | `control/unsupported-oneof.json` | control | rejected | 1 | 0 | 0 | n/a | unsupported.keyword@#/components/schemas/Choice/oneOf |
-| `github-rest/subset` | real-world | not_fetched | 0 | 0 | 0 | n/a | - |
-| `openai/subset` | real-world | not_fetched | 0 | 0 | 0 | n/a | - |
+| `github-rest/subset` | real-world | generated | 2 | 2 | 0 | pass | - |
+| `jsonplaceholder/subset` | real-world | generated | 2 | 2 | 0 | pass | - |
+| `openai/subset` | real-world | generated | 2 | 2 | 0 | pass | - |
 | `petstore/openapi.json` | real-world | generated | 3 | 3 | 0 | pass | - |
 | `petstore/openapi.yaml` | control | generated | 3 | 3 | 0 | pass | - |
-| `rest-subset` | real-world | not_fetched | 0 | 0 | 0 | n/a | - |
 
 ## Rejection reasons
 
@@ -67,6 +67,4 @@ compile_pass           1/1
 
 ## Pending sources
 
-- `github-rest/subset`
-- `openai/subset`
-- `rest-subset`
+- none
