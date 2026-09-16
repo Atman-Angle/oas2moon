@@ -32,12 +32,13 @@ oas2moon generate openapi.yaml --module petstore --out ./generated
 ```moonbit
 let client = @petstore.Client::new(
   base_url="http://127.0.0.1:8080",
+  bearer_token=token,
 )
 
-match client.get_pet_by_id(id=123) {
-  Ok(pet) => println(pet.name)
-  Err(error) => println(error.to_string())
-}
+// 必填参数按位置传递，可选参数用具名形式（`name? : T`）。
+// 操作方法是 `async`，失败通过 `raise SdkError` 表达。
+let pet = client.get_pet_by_id(123L, "trace-id")
+println(pet.name)
 ```
 
 ## 3. 范围与非目标

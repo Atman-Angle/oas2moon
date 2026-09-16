@@ -90,6 +90,7 @@ _RUNTIME_FILES = [
     "runtime.mbt",
     "config.mbt",
     "encoding.mbt",
+    "http_transport.mbt",
 ]
 
 _RUNTIME_PKG = """import {
@@ -158,7 +159,9 @@ def _fetch_output(r: subprocess.CompletedProcess) -> str:
 
 def cmd_generate(args: argparse.Namespace) -> int:
     """Execute ``oas2moon generate``."""
-    input_path = Path(args.input)
+    # Resolve against the caller's cwd: the MoonBit stages run with their own
+    # working directory, so a relative path would not survive the hand-off.
+    input_path = Path(args.input).resolve()
     if not input_path.is_file():
         print(f"error: input file does not exist: {input_path}", file=sys.stderr)
         return 1
@@ -181,7 +184,9 @@ def cmd_generate(args: argparse.Namespace) -> int:
         )
         return 2
 
-    out_dir = Path(args.out)
+    # Same reasoning as the input path: every MoonBit stage runs with its own
+    # working directory, so the output path must be absolute before hand-off.
+    out_dir = Path(args.out).resolve()
     if out_dir.exists() and not out_dir.is_dir():
         print(f"error: output path is not a directory: {out_dir}", file=sys.stderr)
         return 6
@@ -221,6 +226,11 @@ def cmd_generate(args: argparse.Namespace) -> int:
     canonical_size = canonical_path.stat().st_size
     print(_step_label(step, True), file=sys.stderr)
 
+    if getattr(args, "ir_out", None):
+        ir_target = Path(args.ir_out).resolve()
+        ir_target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(str(canonical_path), str(ir_target))
+
     # ── Load canonical IR for inspection ────────────────────
     try:
         api: dict[str, Any] = json.loads(canonical_path.read_text(encoding="utf-8"))
@@ -243,8 +253,6 @@ def cmd_generate(args: argparse.Namespace) -> int:
     # ── Step 4: Copy runtime files ──────────────────────────
     step = "runtime: copy runtime sources"
     _copy_runtime_files(out_dir)
-    _write_moon_pkg(out_dir)
-    _write_moon_mod(out_dir, module_name)
     print(_step_label(step, True), file=sys.stderr)
 
     # ── Step 5: moon fmt ────────────────────────────────────
@@ -327,6 +335,11 @@ def build_parser() -> argparse.ArgumentParser:
     gen.add_argument("input", help="Path to the OpenAPI spec file (.json / .yaml / .yml)")
     gen.add_argument("--module", required=True, help="MoonBit module name (e.g. 'petstore')")
     gen.add_argument("--out", "-o", required=True, help="Output directory for the generated package")
+    gen.add_argument(
+        "--ir-out",
+        default=None,
+        help="Also write the canonical Client IR to this path (useful for tooling and review)",
+    )
 
     return parser
 

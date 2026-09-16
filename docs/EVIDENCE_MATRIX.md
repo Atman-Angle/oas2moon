@@ -14,7 +14,23 @@ Legend: **FROZEN** = documented contract; **SPIKE** = must be verified before im
 | CLI exit codes | 0, 2, 3, 4, 5, 6 semantics | subprocess tests on Windows and Linux | FROZEN + SPIKE-T10 |
 | generated layout | package root with stable model/operation/client ownership | generated fixture + `moon fmt`/`moon check` | FROZEN + SPIKE-T06 |
 | diagnostics | `DIAG code severity location: message`, sorted and path-safe | negative fixtures and byte comparison | FROZEN + TEST-T01/T13 |
+| real HTTP transport | one runtime boundary that owns `moonbitlang/async/http`; generated code never imports it | `src/runtime_moonbit/http_transport.mbt` + generated-package compile + local HTTP assertions | TEST-T11 |
+| end-to-end demo | `oas2moon generate` -> compile -> real server -> typed calls | `demo/petstore/run_demo.ps1` (11 checks, exit 0 on Windows) | TEST-T11 |
+| auth on the wire | bearer, basic, api-key header and api-key query all validated by a real server | `demo/petstore/fixture_server.py` + `demo/petstore/integration/main.mbt` | TEST-T11 |
+| error surfacing | non-2xx -> `Http(op, status, ...)`; missing credential -> `Configuration` | generated client assertions in the T11 driver | TEST-T11 |
+| regeneration determinism | two generations byte-identical, including the emitted IR | `run_demo.ps1` step 12 (SHA-256 per file) | TEST-T11 |
+| generated call shape | required params positional, optional labelled, async + `raise SdkError` | `docs/DECISIONS.md` §12 + ecosystem reference + generated package compile | FROZEN + TEST-T11 |
 | deterministic ordering | UTF-8 bytewise map keys; canonical sort for derived collections; stable bytes | generate twice, compare files/hashes | FROZEN + TEST-T13 |
+
+## Resolved by T11
+
+- Real HTTP transport API and body handling: verified end to end by driving the
+  generated client against the local fixture server.
+- Generated operation call shape: positional required parameters, labelled
+  optional parameters, async methods raising `SdkError`.
+- Deterministic regeneration: verified by hashing two independent generations.
+- Capture-vs-network split: one generated method body serves both, selected by
+  whether `Client::new` received a `capture` transport.
 
 ## Known unresolved API questions
 

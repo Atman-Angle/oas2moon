@@ -793,14 +793,18 @@ fn emit_models(api : ApiIr) -> String {
 }
 
 ///|
-fn module_file(module_name : String) -> String {
-  "name = " +
-  quoted(module_name) +
-  "\n" +
-  "\n" +
-  "version = \"0.1.0\"\n" +
-  "\n" +
-  "preferred_target = \"native\"\n"
+fn module_file(module_name : String, has_operations : Bool) -> String {
+  let mut result = "name = " +
+    quoted(module_name) +
+    "\n" +
+    "\n" +
+    "version = \"0.1.0\"\n"
+  if has_operations {
+    // Generated operations reach the network through the runtime transport,
+    // which is built on moonbitlang/async/http.
+    result += "\nimport {\n  \"moonbitlang/async@0.20.2\",\n}\n"
+  }
+  result + "\npreferred_target = \"native\"\n"
 }
 
 ///|
@@ -950,7 +954,7 @@ fn variant_name(v : ResponseVariant) -> String {
 fn emit_operation(out : StringBuilder, op : OperationIr) -> Unit {
   line(out, "///|")
   line(out, "/// `" + op.http_method + " " + op.path + "`")
-  line(out, "pub fn Client::" + op.fn_name + "(")
+  line(out, "pub async fn Client::" + op.fn_name + "(")
   line(out, "  self : Client,")
   let has_body = match op.request_body {
     Some(body) =>
@@ -1116,9 +1120,25 @@ fn emit_operation(out : StringBuilder, op : OperationIr) -> Unit {
       }
     }
   }
+  if op.security.length() > 0 {
+    if !has_query {
+      line(out, "  let query : Array[(String, String)] = []")
+    }
+    line(
+      out,
+      "  for pair in auth_query(self.config, " +
+      string_array_to_moon(op.security) +
+      ", operation_id=" +
+      quoted(op.operation_id) +
+      ") {",
+    )
+    line(out, "    query.push(pair)")
+    line(out, "  }")
+  }
   let path_expr = build_path_expr(op)
   let http_method_str = quoted(op.http_method)
   // Determine if body is optional
+  let sends_query = has_query || op.security.length() > 0
   let body_optional : Bool = if has_body {
     match op.request_body {
       Some(body) => !body.required
@@ -1130,7 +1150,7 @@ fn emit_operation(out : StringBuilder, op : OperationIr) -> Unit {
   if body_optional {
     line(out, "  let request = match " + body_name + " {")
     let mut with_args = http_method_str + ", " + path_expr
-    if has_query {
+    if sends_query {
       with_args += ", query~"
     }
     with_args += ", headers~"
@@ -1145,7 +1165,7 @@ fn emit_operation(out : StringBuilder, op : OperationIr) -> Unit {
       http_method_str +
       ", " +
       path_expr
-    if has_query {
+    if sends_query {
       req_str += ", query~"
     }
     req_str += ", headers~"
@@ -1165,7 +1185,12 @@ fn emit_operation(out : StringBuilder, op : OperationIr) -> Unit {
     req_str += ")"
     line(out, req_str)
   }
-  line(out, "  let response = send(self.transport, request)")
+  line(
+    out,
+    "  let response = self.send_request(request, " +
+    quoted(op.operation_id) +
+    ")",
+  )
   let statuses = success_status_list(op)
   line(
     out,
@@ -1287,17 +1312,47 @@ fn emit_client(api : ApiIr) -> String {
   emit_response_enums(out, api)
   line(out, "///|")
   line(out, "pub struct Client {")
-  line(out, "  transport : CaptureTransport")
   line(out, "  config : Config")
+  line(out, "  capture : CaptureTransport?")
   line(out, "} derive(Debug)")
   line(out, "")
   line(out, "///|")
+  line(out, "/// Create a client.")
+  line(out, "///")
+  line(
+    out, "/// Without `capture` every operation performs real HTTP through the",
+  )
+  line(
+    out, "/// runtime transport. Supplying a `capture` transport keeps the same",
+  )
+  line(out, "/// generated methods but replays an in-memory response instead.")
   line(out, "pub fn Client::new(")
-  line(out, "  transport : CaptureTransport,")
   line(out, "  base_url? : String = \"\",")
   line(out, "  bearer_token? : String,")
+  line(out, "  basic_username? : String,")
+  line(out, "  basic_password? : String,")
+  line(out, "  api_key_name? : String,")
+  line(out, "  api_key_value? : String,")
+  line(out, "  api_key_location? : String,")
+  line(out, "  capture? : CaptureTransport,")
   line(out, ") -> Client {")
-  line(out, "  { transport, config: Config::new(base_url, bearer_token?) }")
+  line(
+    out, "  let config = Config::new(base_url, bearer_token?, basic_username?, basic_password?, api_key_name?, api_key_value?, api_key_location?)",
+  )
+  line(out, "  { config, capture }")
+  line(out, "}")
+  line(out, "")
+  line(out, "///|")
+  line(out, "/// The single place generated operations obtain a response.")
+  line(out, "async fn Client::send_request(")
+  line(out, "  self : Client,")
+  line(out, "  request : Request,")
+  line(out, "  operation_id : String,")
+  line(out, ") -> Response raise SdkError {")
+  line(out, "  match self.capture {")
+  line(out, "    Some(transport) => transport.send(request)")
+  line(out, "    None => transmit(self.config, request, operation_id~)")
+  line(out, "  }")
   line(out, "}")
   line(out, "")
   for op in api.operations {
@@ -1362,6 +1417,8 @@ fn package_file(needs_string : Bool, has_operations : Bool) -> String {
   imports.push("\"moonbitlang/core/json\"")
   if has_operations {
     imports.push("\"moonbitlang/core/encoding/utf8\"")
+    imports.push("\"moonbitlang/async/http\"")
+    imports.push("\"moonbitlang/async/io\"")
   }
   if needs_string {
     imports.push("\"moonbitlang/core/string\"")
@@ -1370,7 +1427,11 @@ fn package_file(needs_string : Bool, has_operations : Bool) -> String {
   for imp in imports {
     result += "  " + imp + ",\n"
   }
-  result += "}\n\nsupported_targets = \"+native\"\n"
+  result += "}\n"
+  // A test-only `moonbitlang/async` import is deliberately *not* emitted here:
+  // `async test` needs it, but a package without tests would then carry an
+  // unused import. Whoever adds tests adds the import.
+  result += "\nsupported_targets = \"+native\"\n"
   result
 }
 
@@ -1386,7 +1447,7 @@ fn main raise {
   let api = parse_api(@json.parse(source))
   @fs.write_string_to_file(
     path_join(args[2], "moon.mod"),
-    module_file(api.module_name),
+    module_file(api.module_name, api_has_operations(api)),
   )
   @fs.write_string_to_file(
     path_join(args[2], "moon.pkg"),

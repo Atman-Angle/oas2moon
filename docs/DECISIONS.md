@@ -119,3 +119,40 @@ Sort all unordered source maps by UTF-8 bytewise key order. Preserve array order
 ## 11. Evidence and change control
 
 Every contract item below has evidence status in `EVIDENCE_MATRIX.md`. A `SPIKE` item is not an implementation license: first create the smallest executable verification, record the observed API/output, then promote the decision with a dated amendment.
+
+## 12. Generated operation call shape
+
+Generated operation methods follow the convention the MoonBit ecosystem uses for
+generated clients:
+
+- **required parameters are positional**;
+- **optional parameters are labelled** (`name? : T`);
+- **operations are `async fn`** and report failure by raising `SdkError`
+  rather than returning `Result`;
+- `Client::new` takes labelled options only, including credentials
+  (`bearer_token`, `basic_username`/`basic_password`,
+  `api_key_name`/`api_key_value`/`api_key_location`) and an optional
+  `capture : CaptureTransport` used by hermetic tests.
+
+So the generated call shape is
+
+```moonbit
+let pet = client.get_pet_by_id(42L, "trace-id", verbose=true)
+```
+
+and not `client.get_pet_by_id(id=42)`, which MoonBit rejects for a parameter
+declared as positional.
+
+**Evidence.** `moonbit-community/elasticsearch.mbt` — the reference
+implementation identified in `SPIKE_REPORT.md` — generates
+`pub fn AsyncSearchDeleteRequest::new(id : String, query? : ... = ...)` and
+`pub async fn Client::async_search_delete(self : Client, request : ...)`, i.e.
+positional required arguments, labelled optional arguments, and async methods.
+The same shape is reproduced and executed by the T11 Petstore demo, which
+compiles the generated package with `moon fmt` + `moon check --deny-warn`,
+runs its generated tests with `moon test`, and drives the client against a real
+local HTTP server.
+
+**Consequences.** `PROJECT_SPEC.md` and `DEVELOPMENT_SPEC.md` samples were
+updated to this shape; the earlier `Result`-returning sketches were never
+implemented and are not part of the contract.
