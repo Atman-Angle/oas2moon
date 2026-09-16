@@ -4,6 +4,11 @@ pub struct Config {
   origin : String
   base_path : String
   bearer_token : String?
+  basic_username : String?
+  basic_password : String?
+  api_key_name : String?
+  api_key_value : String?
+  api_key_location : String?
 } derive(Debug)
 
 ///|
@@ -13,7 +18,15 @@ pub struct Config {
 /// The split is required because the transport library connects to an origin,
 /// while request targets must stay relative. A trailing slash is dropped so
 /// that path joining stays deterministic.
-pub fn Config::new(base_url : String, bearer_token? : String) -> Config {
+pub fn Config::new(
+  base_url : String,
+  bearer_token? : String,
+  basic_username? : String,
+  basic_password? : String,
+  api_key_name? : String,
+  api_key_value? : String,
+  api_key_location? : String,
+) -> Config {
   let trimmed = if base_url.has_suffix("/") {
     base_url[:base_url.length() - 1].to_owned()
   } else {
@@ -32,7 +45,8 @@ pub fn Config::new(base_url : String, bearer_token? : String) -> Config {
     }
     None => (trimmed, "")
   }
-  { origin, base_path, bearer_token }
+  { origin, base_path, bearer_token, basic_username, basic_password,
+    api_key_name, api_key_value, api_key_location }
 }
 
 ///|
@@ -51,4 +65,34 @@ pub fn Config::base_path(self : Config) -> String {
 /// The configured bearer token, when one was supplied.
 pub fn Config::bearer_token(self : Config) -> String? {
   self.bearer_token
+}
+
+///|
+/// The configured basic auth username, when one was supplied.
+pub fn Config::basic_username(self : Config) -> String? {
+  self.basic_username
+}
+
+///|
+/// The configured basic auth password, when one was supplied.
+pub fn Config::basic_password(self : Config) -> String? {
+  self.basic_password
+}
+
+///|
+/// The configured API key name (header name or query parameter name), when one was supplied.
+pub fn Config::api_key_name(self : Config) -> String? {
+  self.api_key_name
+}
+
+///|
+/// The configured API key value, when one was supplied.
+pub fn Config::api_key_value(self : Config) -> String? {
+  self.api_key_value
+}
+
+///|
+/// The configured API key location ("header" or "query"), when one was supplied.
+pub fn Config::api_key_location(self : Config) -> String? {
+  self.api_key_location
 }
