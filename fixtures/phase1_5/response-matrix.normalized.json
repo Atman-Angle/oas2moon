@@ -1,0 +1,303 @@
+{
+  "frontendModelVersion": 1,
+  "openapi": "3.0.3",
+  "title": "Response Strategy Matrix",
+  "servers": [
+    "http://127.0.0.1:18080"
+  ],
+  "securitySchemes": {},
+  "security": [],
+  "schemas": {
+    "Pet": {
+      "kind": "object",
+      "ref": null,
+      "format": null,
+      "nullable": false,
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "kind": "integer",
+          "format": "int64",
+          "nullable": false,
+          "required": [],
+          "properties": {},
+          "items": null,
+          "enum": [],
+          "additionalProperties": true
+        },
+        "name": {
+          "kind": "string",
+          "format": null,
+          "nullable": false,
+          "required": [],
+          "properties": {},
+          "items": null,
+          "enum": [],
+          "additionalProperties": true
+        }
+      },
+      "items": null,
+      "enum": [],
+      "additionalProperties": true
+    },
+    "CreatedResponse": {
+      "kind": "object",
+      "ref": null,
+      "format": null,
+      "nullable": false,
+      "required": [
+        "id",
+        "created_at"
+      ],
+      "properties": {
+        "id": {
+          "kind": "integer",
+          "format": "int64",
+          "nullable": false,
+          "required": [],
+          "properties": {},
+          "items": null,
+          "enum": [],
+          "additionalProperties": true
+        },
+        "created_at": {
+          "kind": "string",
+          "format": null,
+          "nullable": false,
+          "required": [],
+          "properties": {},
+          "items": null,
+          "enum": [],
+          "additionalProperties": true
+        }
+      },
+      "items": null,
+      "enum": [],
+      "additionalProperties": true
+    }
+  },
+  "operations": [
+    {
+      "operationId": "getPetById",
+      "method": "GET",
+      "path": "/pets/{id}",
+      "security": [],
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        {
+          "status": "200",
+          "description": "ok",
+          "media_type": "application/json",
+          "schema": {
+            "kind": "any",
+            "ref": "#/components/schemas/Pet",
+            "format": null,
+            "nullable": false,
+            "required": [],
+            "properties": {},
+            "items": null,
+            "enum": [],
+            "additionalProperties": true
+          }
+        }
+      ],
+      "tags": []
+    },
+    {
+      "operationId": "deletePet",
+      "method": "DELETE",
+      "path": "/pets/{id}",
+      "security": [],
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        {
+          "status": "204",
+          "description": "deleted",
+          "media_type": null,
+          "schema": null
+        }
+      ],
+      "tags": []
+    },
+    {
+      "operationId": "addPet",
+      "method": "POST",
+      "path": "/pets",
+      "security": [],
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        {
+          "status": "201",
+          "description": "created",
+          "media_type": "application/json",
+          "schema": {
+            "kind": "any",
+            "ref": "#/components/schemas/Pet",
+            "format": null,
+            "nullable": false,
+            "required": [],
+            "properties": {},
+            "items": null,
+            "enum": [],
+            "additionalProperties": true
+          }
+        }
+      ],
+      "tags": []
+    },
+    {
+      "operationId": "updatePet",
+      "method": "PUT",
+      "path": "/pets/{id}",
+      "security": [],
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        {
+          "status": "200",
+          "description": "ok",
+          "media_type": "application/json",
+          "schema": {
+            "kind": "any",
+            "ref": "#/components/schemas/Pet",
+            "format": null,
+            "nullable": false,
+            "required": [],
+            "properties": {},
+            "items": null,
+            "enum": [],
+            "additionalProperties": true
+          }
+        },
+        {
+          "status": "201",
+          "description": "created",
+          "media_type": "application/json",
+          "schema": {
+            "kind": "any",
+            "ref": "#/components/schemas/Pet",
+            "format": null,
+            "nullable": false,
+            "required": [],
+            "properties": {},
+            "items": null,
+            "enum": [],
+            "additionalProperties": true
+          }
+        }
+      ],
+      "tags": []
+    },
+    {
+      "operationId": "createPets",
+      "method": "POST",
+      "path": "/pets/batch",
+      "security": [],
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        {
+          "status": "200",
+          "description": "ok",
+          "media_type": "application/json",
+          "schema": {
+            "kind": "any",
+            "ref": "#/components/schemas/Pet",
+            "format": null,
+            "nullable": false,
+            "required": [],
+            "properties": {},
+            "items": null,
+            "enum": [],
+            "additionalProperties": true
+          }
+        },
+        {
+          "status": "201",
+          "description": "created",
+          "media_type": "application/json",
+          "schema": {
+            "kind": "any",
+            "ref": "#/components/schemas/CreatedResponse",
+            "format": null,
+            "nullable": false,
+            "required": [],
+            "properties": {},
+            "items": null,
+            "enum": [],
+            "additionalProperties": true
+          }
+        }
+      ],
+      "tags": []
+    },
+    {
+      "operationId": "healthCheck",
+      "method": "GET",
+      "path": "/health",
+      "security": [],
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        {
+          "status": "200",
+          "description": "ok",
+          "media_type": null,
+          "schema": null
+        }
+      ],
+      "tags": []
+    },
+    {
+      "operationId": "getRaw",
+      "method": "GET",
+      "path": "/raw",
+      "security": [],
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        {
+          "status": "200",
+          "description": "raw",
+          "media_type": "text/plain",
+          "schema": {
+            "kind": "string",
+            "format": null,
+            "nullable": false,
+            "required": [],
+            "properties": {},
+            "items": null,
+            "enum": [],
+            "additionalProperties": true
+          }
+        }
+      ],
+      "tags": []
+    },
+    {
+      "operationId": "getError",
+      "method": "GET",
+      "path": "/error",
+      "security": [],
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        {
+          "status": "404",
+          "description": "not found",
+          "media_type": "application/json",
+          "schema": null
+        }
+      ],
+      "tags": []
+    }
+  ],
+  "issues": [],
+  "ignored": []
+}
