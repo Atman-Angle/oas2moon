@@ -34,11 +34,13 @@ Legend: **FROZEN** = documented contract; **SPIKE** = must be verified before im
 
 ## Known unresolved evidence gaps
 
-- T12 has not run the generator across a real-world corpus or measured
-  supported/rejected operation rates.
-- T14 hosted evidence is available for both jobs: commit `040f488`,
-  `cross-platform-ci` run `35177945624` completed successfully on Ubuntu and
-  Windows. This historical run is not a substitute for a release-PR run.
+- T12 has the manifest, metrics harness and generated report
+  (`corpus/sources.json`, `tools/corpus_metrics.py`, `docs/CORPUS_REPORT.md`),
+  but the GitHub REST, OpenAI and third-party subsets are still
+  `remote/pending` / `planned`. Only the Petstore entry has been measured, so no
+  real-world support rate may be quoted yet.
+- T14 has a Windows workflow file, but it has not yet run on GitHub and there is
+  no Linux job.
 - Response enums and `UnsupportedMediaType` are modeled but lack an end-to-end
   demo case.
 

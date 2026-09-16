@@ -1,0 +1,73 @@
+{
+  "manifestVersion": 1,
+  "comment": "T12 corpus manifest. `role` is `real-world` for the API subsets the published metrics come from, and `control` for local fixtures that only guard the machinery. Remote entries stay `pending` until they carry a pinned commit and sha256, so no number in docs/CORPUS_REPORT.md can come from an unpinned download.",
+  "sources": [
+    {
+      "id": "petstore/openapi.json",
+      "kind": "local",
+      "role": "real-world",
+      "path": "fixtures/petstore/openapi.json",
+      "origin": "Swagger Petstore sample, trimmed to the V1 profile by this project",
+      "license": "Apache-2.0 (Swagger Petstore sample)"
+    },
+    {
+      "id": "petstore/openapi.yaml",
+      "kind": "local",
+      "role": "control",
+      "path": "fixtures/petstore/openapi.yaml",
+      "origin": "same document as petstore/openapi.json, YAML encoding",
+      "license": "Apache-2.0 (Swagger Petstore sample)"
+    },
+    {
+      "id": "control/unsupported-oneof.json",
+      "kind": "local",
+      "role": "control",
+      "path": "fixtures/unsupported/oneof.json",
+      "origin": "negative control: a keyword outside the V1 profile",
+      "license": "project fixture"
+    },
+    {
+      "id": "control/scan-false-positive.json",
+      "kind": "local",
+      "role": "control",
+      "path": "fixtures/regression/scan_false_positive_input.json",
+      "origin": "control: `oneOf` inside example data must not be treated as a schema keyword",
+      "license": "project fixture"
+    },
+    {
+      "id": "github-rest/subset",
+      "kind": "remote",
+      "role": "real-world",
+      "status": "pending",
+      "url": "https://github.com/github/rest-api-description",
+      "document": "descriptions/api.github.com/api.github.com.json",
+      "commit": null,
+      "sha256": null,
+      "subset": null,
+      "note": "TODO(T12): pin a commit, select a subset (tag or path list), then record commit + sha256 here. Do not measure an unpinned download."
+    },
+    {
+      "id": "openai/subset",
+      "kind": "remote",
+      "role": "real-world",
+      "status": "pending",
+      "url": "https://github.com/openai/openai-openapi",
+      "document": "openapi.yaml",
+      "commit": null,
+      "sha256": null,
+      "subset": null,
+      "note": "TODO(T12): pin a commit, select a subset, then record commit + sha256 here."
+    },
+    {
+      "id": "rest-subset",
+      "kind": "planned",
+      "role": "real-world",
+      "status": "pending",
+      "url": null,
+      "commit": null,
+      "sha256": null,
+      "subset": null,
+      "note": "TODO(T12): pick one conventional REST API spec (an OpenAPI 3.0 document from a public service) and pin it. The choice is deliberately still open, so this entry has no url yet."
+    }
+  ]
+}

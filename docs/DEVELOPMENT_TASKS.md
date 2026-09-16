@@ -314,6 +314,40 @@ rejection_reasons
 compile_pass
 ```
 
+**指标口径（冻结，避免夸大）**：
+
+- `operations_total`：JSON 语料用 stdlib 独立数 `paths.<path>.<method>`，并与前端建模的
+  operation 数交叉核对；YAML 语料退回建模数并标注 `operations_total_source: "modeled"`；
+- `operations_modeled` / `operations_dropped`：后者是 `total - modeled`，即前端根本没有
+  产出 IR 的 operation（例如将来的 TRACE），必须显式报告，不能藏进 supported；
+- `operations_supported`：**生成且编译通过**的 spec 的 operation 数；
+- `operations_rejected`：`total - supported`；
+- `rejection_reasons`：每条记录的 unsupported 关键字，带稳定 code 与 JSON Pointer；
+- `compile_pass`：通过 `moon fmt --check` 与 `moon check --target native --deny-warn`
+  的 spec 比例；
+- **粒度**：V1 拒绝的是 spec 而不是单个 operation，因此被拒 spec 的 supported 记为 0。
+  报告必须写明这一点，不得暗示流水线具备 per-operation 精度；
+- **只把 `role: real-world` 的条目算进头部数字**。本地负例和"同一文档的 YAML 编码"
+  记为 `control`，单独成块，绝不并入真实语料总量。
+
+**骨架（2026-09-17，`feat/t12-corpus-metrics`）**：
+
+- `corpus/sources.json`：manifest，条目分 `local` / `remote` / `planned` 三种；remote
+  必须 pinned `commit` + `sha256` 才能被测量，否则只能是 pending；
+- `corpus/README.md`：布局、provenance/license 规则、如何新增语料；
+- `tools/corpus_metrics.py`：跑 frontend → CLI → fmt/check，输出确定性 JSON 与 markdown；
+- `docs/CORPUS_REPORT.md`：由脚本生成，禁止手改数字；
+- `tests/test_t12_corpus_metrics.py`（5 项）：manifest 规则、generated/rejected/pending
+  计价、输出字节确定性，以及"提交的报告必须等于重新生成的结果"防漂移检查。
+
+当前实测（见 `docs/CORPUS_REPORT.md`）：全部 7 条（3 条 pending），real-world 4 条
+（3 条 pending）；Petstore 3 个 operation 全部支持且编译通过；`oneof` 负例 1 个
+operation 被拒，原因为 `unsupported.keyword@#/components/schemas/Choice/oneOf`。
+
+**尚未完成**：GitHub REST subset、OpenAI subset、第三个传统 REST subset 目前都是
+`remote/pending` 或 `planned`，**没有任何真实数字**。因此 T12 不能标记 DONE，也不能
+引用任何 GitHub/OpenAI 支持率。
+
 **出口**：所有声称支持的 case 均生成并编译；失败原因可追溯。
 
 **依赖**：T10、T11、T13。
@@ -444,11 +478,11 @@ T13 → T12 → T14 → T15
 | T08 | 结构化错误 | DONE | T08 语义由 T07 的六变体 `SdkError` 覆盖；原分支因 local `$ref` fixture 回归废弃，见 §6.1 |
 | T09 | 鉴权 | DONE | T11 在真实 server 上验证 bearer/basic/apiKey header/apiKey query；已在 `main` |
 | T10 | CLI | DONE | `tests/test_t10_cli.py`（含并发 scratch-dir 回归测试）；`demo/petstore/run_demo.ps1` 走真实 CLI；已在 `main` |
-| T11 | E2E Demo | DONE | `pwsh -NoProfile -File demo/petstore/run_demo.ps1`；本地结果必须以当前运行输出为准 |
-| T12 | Corpus | TODO | 建立统计脚本接口（依赖 T11/T13） |
+| T11 | E2E Demo | DONE | `pwsh -NoProfile -File demo/petstore/run_demo.ps1`：11/11 通过；`python -m pytest tests -q`：31 项通过 |
+| T12 | Corpus | IN_PROGRESS | 骨架已建立：`corpus/sources.json`、`corpus/README.md`、`tools/corpus_metrics.py`、`docs/CORPUS_REPORT.md`、`tests/test_t12_corpus_metrics.py`（5 项）；GitHub/OpenAI/第三个真实 subset 仍 pending，无真实数字，故未完成 |
 | T13 | Determinism | DONE | `tests/test_t13_determinism.py`（33 项）：语料双生成字节一致、spec/normalized model 键序反转不变、IR 顺序不变、诊断有序、无时间戳/随机 ID/绝对路径；CI 已加 determinism gate；分支 `feat/t13-determinism-hardening` |
-| T14 | CI | DONE | `cross-platform-ci` run `35177945624`：Ubuntu/Windows 均 success（commit `040f488`） |
-| T15 | Release | DONE | README、支持矩阵、验收/依赖材料、答辩脚本与仓库卫生记录 |
+| T14 | CI | IN_PROGRESS | `.github/workflows/demo-windows.yml` 已加入并做 YAML 校验；尚未在 GitHub runner 上实际跑过 |
+| T15 | Release | TODO | README、支持矩阵、FAQ 与答辩脚本 |
 
 ### 6.1 T08 结论与分支收尾
 
@@ -467,8 +501,9 @@ wire 值（例如 `"PetStatus::Available"`）。这违反了 V1 的 local `$ref`
 `"$ref": "#/components/schemas/PetStatus"`，T11 demo 也持续验证 local `$ref`
 可生成并编译。
 
-当前发布证据的主要缺口是 T12 corpus/metrics；T14 的 hosted Ubuntu/Windows
-记录已可访问，T15 发布材料已完成。历史任务状态以相关提交和当前验收文档为准。
+当前已合入 `main` 的任务链为 T06、T07、T09、T10、T11；T13 已完成，待在
+`feat/t13-determinism-hardening` 上评审合并。剩余工作是 T12 corpus/metrics、
+T14 GitHub CI 实跑和 T15 发布文档。
 
 ## 7. 风险与升级规则
 
