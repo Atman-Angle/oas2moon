@@ -30,7 +30,7 @@ T00 合同冻结
   ├── T09 Authentication
   └── T10 CLI
 
-T03 + T07 + T08 + T09 + T10
+T03 + T07 + T09 + T10
   └── T11 End-to-End Petstore Demo
 
 T11
@@ -242,6 +242,11 @@ T11
 
 **依赖**：T02、T05、T06。
 
+**结论（2026-09-16）**：T08 的目标已由 T07 的实现覆盖。
+`feat/t08-structured-error` 的 runtime/codegen 变更与 T07 逐字节一致；分支额外内容
+主要是一组重复错误测试和生成出的 `pkg.generated.mbti`，同时包含把本地 `$ref`
+改成 `""` 的 fixture 回归。该分支已废弃，不再单独合并。
+
 ---
 
 ### T09：鉴权
@@ -254,7 +259,7 @@ T11
 
 **出口**：认证逻辑集中在 runtime/client config；操作代码不重复实现鉴权。
 
-**依赖**：T01、T02、T06、T08。
+**依赖**：T01、T02、T06、T07。
 
 ---
 
@@ -268,7 +273,7 @@ T11
 
 **出口**：README 中的单条命令可在干净目录运行，不依赖 tests/ 或 fixtures/ 内部路径。
 
-**依赖**：T06、T08。
+**依赖**：T06、T07。
 
 ---
 
@@ -287,7 +292,7 @@ T11
 
 **出口**：第三方按 README 可在干净环境复现完整流程。
 
-**依赖**：T03、T07、T08、T09、T10。
+**依赖**：T03、T07、T09、T10。
 
 **这是项目是否从原型进入产品的核心 Gate。**
 
@@ -360,7 +365,7 @@ T00 → T01 → T02 → T03 → T04/T05 → T06
 ### 第二阶段：完成 API Client
 
 ```text
-T07 → T08 → T09
+T07（包含 T08 的错误模型）→ T09
 ```
 
 ### 第三阶段：交付用户入口
@@ -403,7 +408,7 @@ T13 → T12 → T14 → T15
 ## 6. 当前迭代看板
 
 > 校准日期：2026-09-16。本表按**仓库真实状态**更新，而不是按计划更新。
-> `DONE（分支）` 表示该任务已在其 `feat/` 分支完成并通过测试，但尚未合入 `main`。
+> `main` 是当前交付基线；下面标为 `DONE` 的任务均已合入 `main`。
 
 | ID | 任务 | 状态 | 证据 / 立即下一步 |
 |---|---|---|---|
@@ -413,37 +418,36 @@ T13 → T12 → T14 → T15
 | T03 | GET 纵切片 | DONE | `tests/test_t03.py`（已在 `main`） |
 | T04 | 参数序列化 | DONE | `src/runtime_moonbit/encoding.mbt` + T07/T11 的真实 server 断言 |
 | T05 | 响应策略 | DONE | `src/core_moonbit` response_strategy、`tests/test_response_strategy.py` |
-| T06 | Operation Codegen | DONE（分支） | `src/codegen_moonbit` `emit_client`、`tests/test_t06.py`；已并入 `feat/t11-integration` |
-| T07 | CRUD / JSON body | DONE（分支） | `tests/test_t07.py`；已并入 `feat/t11-integration` |
-| T08 | 结构化错误 | BLOCKED | 见 §6.1：该分支把 fixture 的 `$ref` 改成 `""`，使 local `$ref` 静默退化为 `Json`，并把退化后的错误 wire 值写进了测试。须先修复再合并；`SdkError` 的六变体模型实际已由 T07 提供 |
-| T09 | 鉴权 | DONE（分支） | `feat/t09-auth` 已并入 `feat/t11-integration`；T11 在真实 server 上验证 bearer/basic/apiKey header/apiKey query |
-| T10 | CLI | DONE（分支） | `feat/t10-cli` 已并入；`tests/test_t10_cli.py`、`demo/petstore/run_demo.ps1` 走真实 CLI |
-| T11 | E2E Demo | DONE | `demo/petstore/run_demo.ps1`：11/11 通过，生成的客户端在真实 server 上产生 9 个请求 |
+| T06 | Operation Codegen | DONE | `src/codegen_moonbit` `emit_client`、`tests/test_t06.py`；已在 `main` |
+| T07 | CRUD / JSON body | DONE | `tests/test_t07.py`、`runtime_wbtest.mbt`；已在 `main` |
+| T08 | 结构化错误 | DONE | T08 语义由 T07 的六变体 `SdkError` 覆盖；原分支因 local `$ref` fixture 回归废弃，见 §6.1 |
+| T09 | 鉴权 | DONE | T11 在真实 server 上验证 bearer/basic/apiKey header/apiKey query；已在 `main` |
+| T10 | CLI | DONE | `tests/test_t10_cli.py`（含并发 scratch-dir 回归测试）；`demo/petstore/run_demo.ps1` 走真实 CLI；已在 `main` |
+| T11 | E2E Demo | DONE | `pwsh -NoProfile -File demo/petstore/run_demo.ps1`：11/11 通过；`python -m pytest tests -q`：31 项通过 |
 | T12 | Corpus | TODO | 建立统计脚本接口（依赖 T11/T13） |
 | T13 | Determinism | TODO | demo 已覆盖单 Spec 双生成；语料级确定性仍需补齐 |
 | T14 | CI | IN_PROGRESS | `.github/workflows/demo-windows.yml` 已加入并做 YAML 校验；尚未在 GitHub runner 上实际跑过 |
 | T15 | Release | TODO | README、支持矩阵、FAQ 与答辩脚本 |
 
-### 6.1 分支现状与合并顺序
+### 6.1 T08 结论与分支收尾
 
-多个任务分支彼此独立于 `main`。合并它们不是纯文本操作：T07 与 T08 是同源兄弟分支，双方都新建了 `tests/test_t07.py`、都重写了 `tools/fixture_server.py`、`src/runtime_moonbit/runtime.mbt` 与 `src/codegen_moonbit/main.mbt`，而且 T08 还引入了语义回归。
+T07 与 T08 是同一基线 `cb6f6c5` 的兄弟分支。两者在
+`src/runtime_moonbit/runtime.mbt`、`src/runtime_moonbit/runtime_wbtest.mbt` 和
+`src/codegen_moonbit/main.mbt` 上逐字节一致；T08 没有提供 T07 缺少的生产实现。
 
-```text
-main
-├── feat/t07-crud-json-body  (⊃ T06)         已并入 feat/t11-integration
-│   ├── feat/t08-structured-error            与 T07 冲突，且含 §6.1 的回归
-│   └── feat/t11-integration ← 当前主线       T07 + T09 + T10 + T11
-├── feat/t09-auth                            已并入 feat/t11-integration
-└── feat/t10-cli                             已并入 feat/t11-integration
-```
+T08 分支的主要问题不是普通冲突，而是语义回归：`fixtures/petstore/openapi.json`
+中多个本地引用被从 `"$ref"` 改成 `""`，导致 local `$ref` 不再解析、
+`Pet.status` 静默退化为 `Json`，并且修改后的 `tests/test_t07.py` 固化了错误的
+wire 值（例如 `"PetStatus::Available"`）。这违反了 V1 的 local `$ref` 支持承诺
+和禁止 silent fallback 的约束。
 
-合并顺序建议：先把 `feat/t11-integration` 合入 `main`，再单独修复并合并 T08。
+因此结论是：**T08 由 T07 覆盖，`feat/t08-structured-error` 因 fixture 回归废弃并删除。**
+`main` 上的 `fixtures/petstore/openapi.json` 仍保留正确的
+`"$ref": "#/components/schemas/PetStatus"`，T11 demo 也持续验证 local `$ref`
+可生成并编译。
 
-**T08 的具体回归（必须先修）**：`fixtures/petstore/openapi.json` 中
-`"$ref": "#/components/schemas/PetStatus"` 被改写成 `"": "#/components/schemas/PetStatus"`。
-本地 `$ref` 因此不再解析，`Pet.status` 退化为 `Json`，而该分支的测试进一步
-断言了退化的 wire 值（`"PetStatus::Available"`）。这与 V1 支持矩阵中
-“local `$ref` = Supported”以及“禁止静默降级”直接矛盾。
+当前已合入 `main` 的任务链为 T06、T07、T09、T10、T11；剩余工作是
+T12 corpus/metrics、T13 corpus 级确定性、T14 GitHub CI 实跑和 T15 发布文档。
 
 ## 7. 风险与升级规则
 

@@ -175,7 +175,7 @@ The claim above is backed by the demo, not by inspection:
 
 ```pwsh
 pwsh -NoProfile -File demo/petstore/run_demo.ps1     # 11/11 checks, exit 0
-python -m pytest tests -q                            # 29 passed
+python -m pytest tests -q                            # 31 passed (2 new scratch-dir tests)
 ```
 
 The demo generates through the real CLI, compiles the generated package, runs

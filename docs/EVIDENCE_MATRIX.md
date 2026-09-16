@@ -5,16 +5,16 @@ Legend: **FROZEN** = documented contract; **SPIKE** = must be verified before im
 
 | Contract | Decision | Evidence required | Status |
 |---|---|---|---|
-| Runtime request/response | adapter boundary with method, URL, headers, body and status/headers/body response | minimal MoonBit transport compile spike + local HTTP server | SPIKE-T02 |
-| `SdkError` | structured transport/http/decode/encode/configuration/unsupported categories | MoonBit type compile spike; error tests | SPIKE-T02 |
+| Runtime request/response | adapter boundary with method, URL, headers, body and status/headers/body response | runtime/unit tests + generated-package compile + local HTTP server | FROZEN + TEST-T07/T11 |
+| `SdkError` | six variants: transport/http/decode/encode/configuration/unsupported; all carry `operation_id`; HTTP carries status/headers/body | `runtime_wbtest.mbt` + generated-client assertions + stable display tests | FROZEN + TEST-T07 |
 | Status policy | typed success, `Unit` 204, response enum for differing schemas, structured non-2xx | status matrix fixtures + local HTTP assertions | FROZEN + TEST-T05 |
-| optional/nullable | absence distinct from explicit null | IR/codegen fixtures and JSON round-trip tests | FROZEN + SPIKE-T01/T02 |
-| path/query/header encoding | percent-encoded path; repeated supported query arrays; stable order; reject unsupported styles | byte-exact local server assertions | FROZEN + SPIKE-T04 |
-| authentication | API key/Bearer/Basic in client config; operation override; empty security unauthenticated | local HTTP header/query assertions | FROZEN + SPIKE-T09 |
-| CLI exit codes | 0, 2, 3, 4, 5, 6 semantics | subprocess tests on Windows and Linux | FROZEN + SPIKE-T10 |
-| generated layout | package root with stable model/operation/client ownership | generated fixture + `moon fmt`/`moon check` | FROZEN + SPIKE-T06 |
+| optional/nullable | absence distinct from explicit null | IR/codegen fixtures and JSON round-trip tests | FROZEN + TEST-T01/T07 |
+| path/query/header encoding | percent-encoded path; repeated supported query arrays; stable order; reject unsupported styles | byte-exact local server assertions | FROZEN + TEST-T07/T11 |
+| authentication | API key/Bearer/Basic in client config; operation override; empty security unauthenticated | real-server header/query assertions in the T11 demo | FROZEN + TEST-T11 |
+| CLI exit codes | 0, 1, 2, 3, 5, 6 semantics; 4 is unused/reserved | `tests/test_t10_cli.py` on Windows; Linux CI remains T14 | FROZEN + TEST-T10 |
+| generated layout | self-contained flat package: `client.mbt`, `config.mbt`, `encoding.mbt`, `http_transport.mbt`, `models.mbt`, `runtime.mbt`, `moon.mod`, `moon.pkg` | generated fixture + `moon fmt`/`moon check`/`moon test` + T11 hash check | FROZEN + TEST-T06/T10/T11 |
 | diagnostics | `DIAG code severity location: message`, sorted and path-safe | negative fixtures and byte comparison | FROZEN + TEST-T01/T13 |
-| real HTTP transport | one runtime boundary that owns `moonbitlang/async/http`; generated code never imports it | `src/runtime_moonbit/http_transport.mbt` + generated-package compile + local HTTP assertions | TEST-T11 |
+| real HTTP transport | one runtime boundary that owns `moonbitlang/async/http`; generated code never imports it | `src/runtime_moonbit/http_transport.mbt` + generated-package compile + T07/T11 local HTTP assertions | TEST-T07/T11 |
 | end-to-end demo | `oas2moon generate` -> compile -> real server -> typed calls | `demo/petstore/run_demo.ps1` (11 checks, exit 0 on Windows) | TEST-T11 |
 | auth on the wire | bearer, basic, api-key header and api-key query all validated by a real server | `demo/petstore/fixture_server.py` + `demo/petstore/integration/main.mbt` | TEST-T11 |
 | error surfacing | non-2xx -> `Http(op, status, ...)`; missing credential -> `Configuration` | generated client assertions in the T11 driver | TEST-T11 |
@@ -32,12 +32,16 @@ Legend: **FROZEN** = documented contract; **SPIKE** = must be verified before im
 - Capture-vs-network split: one generated method body serves both, selected by
   whether `Client::new` received a `capture` transport.
 
-## Known unresolved API questions
+## Known unresolved evidence gaps
 
-- Exact installed MoonBit async/HTTP request and response types, error propagation, and body APIs (T02).
-- Exact MoonBit representation for optional-plus-nullable fields and generated response enums (T01/T02).
-- Exact CLI argument parser and subprocess conventions on Windows (T10).
-- Final package/module layout accepted by the real MoonBit toolchain (T06).
+- T12 has not run the generator across a real-world corpus or measured
+  supported/rejected operation rates.
+- T13 has not extended determinism comparison from the single Petstore demo to
+  a corpus and diagnostic ordering.
+- T14 has a Windows workflow file, but it has not yet run on GitHub and there is
+  no Linux job.
+- Response enums and `UnsupportedMediaType` are modeled but lack an end-to-end
+  demo case.
 
 ## Contradiction check
 
