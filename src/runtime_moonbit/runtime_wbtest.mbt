@@ -118,6 +118,9 @@ test "encode_header_array" {
 ///|
 test "build_query_string" {
   assert_eq(build_query_string([]), "")
-  assert_eq(build_query_string([("q", "hello"), ("page", "1")]), "q=hello&page=1")
+  assert_eq(
+    build_query_string([("q", "hello"), ("page", "1")]),
+    "q=hello&page=1",
+  )
   assert_eq(build_query_string([("a", "1")]), "a=1")
 }

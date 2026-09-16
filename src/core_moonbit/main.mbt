@@ -4,7 +4,6 @@
 /// Reads a Frontend Model JSON (from the MoonContract-based adapter),
 /// lowers it to the typed Canonical Client IR, and writes the result
 /// as deterministic canonical JSON for the codegen backends.
-
 fn main raise {
   let args = @env.args()
   guard args.length() >= 3 else {

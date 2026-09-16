@@ -3,7 +3,8 @@
 ///
 /// Produces the JSON format that the codegen backends consume.
 
-///| Convert HttpMethod to string.
+///|
+/// Convert HttpMethod to string.
 fn method_to_string(m : HttpMethod) -> String {
   match m {
     Get => "GET"
@@ -14,7 +15,8 @@ fn method_to_string(m : HttpMethod) -> String {
   }
 }
 
-///| Convert ParamLocation to string.
+///|
+/// Convert ParamLocation to string.
 fn location_to_string(l : ParamLocation) -> String {
   match l {
     Path => "path"
@@ -23,7 +25,8 @@ fn location_to_string(l : ParamLocation) -> String {
   }
 }
 
-///| Convert a json array from array of strings.
+///|
+/// Convert a json array from array of strings.
 fn strings_to_json(xs : Array[String]) -> Json {
   let out : Array[Json] = []
   for s in xs {
@@ -32,7 +35,8 @@ fn strings_to_json(xs : Array[String]) -> Json {
   Json::array(out)
 }
 
-///| Serialize model members to JSON.
+///|
+/// Serialize model members to JSON.
 fn members_to_json(members : Array[(String, String)]) -> Json {
   let out : Array[Json] = []
   for pair in members {
@@ -42,7 +46,8 @@ fn members_to_json(members : Array[(String, String)]) -> Json {
   Json::array(out)
 }
 
-///| Serialize a FieldIr to JSON.
+///|
+/// Serialize a FieldIr to JSON.
 fn field_to_json(f : FieldIr) -> Json {
   let required = is_required_presence(f.presence)
   let nullable = is_nullable_presence(f.presence)
@@ -58,7 +63,8 @@ fn field_to_json(f : FieldIr) -> Json {
   )
 }
 
-///| Serialize fields array to JSON.
+///|
+/// Serialize fields array to JSON.
 fn fields_to_json(fields : Array[FieldIr]) -> Json {
   let out : Array[Json] = []
   for f in fields {
@@ -67,16 +73,18 @@ fn fields_to_json(fields : Array[FieldIr]) -> Json {
   Json::array(out)
 }
 
-///| Serialize a model to JSON.
+///|
+/// Serialize a model to JSON.
 fn model_to_json(m : ModelIr) -> Json {
   match m {
-    EnumModel(e) => Json::object(
-      Map([
-        ("kind", Json::string("enum")),
-        ("name", Json::string(e.name)),
-        ("members", members_to_json(e.members)),
-      ]),
-    )
+    EnumModel(e) =>
+      Json::object(
+        Map([
+          ("kind", Json::string("enum")),
+          ("name", Json::string(e.name)),
+          ("members", members_to_json(e.members)),
+        ]),
+      )
     StructModel(s) => {
       let additional_field = match s.additional_properties_field {
         Some(name) => Json::string(name)
@@ -95,7 +103,8 @@ fn model_to_json(m : ModelIr) -> Json {
   }
 }
 
-///| Serialize models array to JSON.
+///|
+/// Serialize models array to JSON.
 fn models_to_json(models : Array[ModelIr]) -> Json {
   let out : Array[Json] = []
   for m in models {
@@ -104,7 +113,8 @@ fn models_to_json(models : Array[ModelIr]) -> Json {
   Json::array(out)
 }
 
-///| Serialize a ParameterIr to JSON.
+///|
+/// Serialize a ParameterIr to JSON.
 fn parameter_to_json(p : ParameterIr) -> Json {
   Json::object(
     Map([
@@ -116,13 +126,16 @@ fn parameter_to_json(p : ParameterIr) -> Json {
       ("nullable", Json::boolean(p.nullable)),
       (
         "presence",
-        Json::string(presence_to_string(compute_presence(p.required, p.nullable))),
+        Json::string(
+          presence_to_string(compute_presence(p.required, p.nullable)),
+        ),
       ),
     ]),
   )
 }
 
-///| Serialize parameters array to JSON.
+///|
+/// Serialize parameters array to JSON.
 fn parameters_to_json(params : Array[ParameterIr]) -> Json {
   let out : Array[Json] = []
   for p in params {
@@ -131,33 +144,36 @@ fn parameters_to_json(params : Array[ParameterIr]) -> Json {
   Json::array(out)
 }
 
-///| Serialize a RequestBodyIr to JSON.
+///|
+/// Serialize a RequestBodyIr to JSON.
 fn request_body_to_json(rb : RequestBodyIr?) -> Json {
   match rb {
-    Some(body) => Json::object(
-      Map([
-        (
-          "type",
-          match body.type_ref {
-            Some(t) => type_ref_to_json(t)
-            None => Json::null()
-          },
-        ),
-        ("required", Json::boolean(body.required)),
-        (
-          "media_type",
-          match body.media_type {
-            Some(s) => Json::string(s)
-            None => Json::null()
-          },
-        ),
-      ]),
-    )
+    Some(body) =>
+      Json::object(
+        Map([
+          (
+            "type",
+            match body.type_ref {
+              Some(t) => type_ref_to_json(t)
+              None => Json::null()
+            },
+          ),
+          ("required", Json::boolean(body.required)),
+          (
+            "media_type",
+            match body.media_type {
+              Some(s) => Json::string(s)
+              None => Json::null()
+            },
+          ),
+        ]),
+      )
     None => Json::null()
   }
 }
 
-///| Serialize a ResponseIr to JSON.
+///|
+/// Serialize a ResponseIr to JSON.
 fn response_to_json(r : ResponseIr) -> Json {
   Json::object(
     Map([
@@ -180,7 +196,8 @@ fn response_to_json(r : ResponseIr) -> Json {
   )
 }
 
-///| Serialize responses array to JSON.
+///|
+/// Serialize responses array to JSON.
 fn responses_to_json(responses : Array[ResponseIr]) -> Json {
   let out : Array[Json] = []
   for r in responses {
@@ -191,8 +208,8 @@ fn responses_to_json(responses : Array[ResponseIr]) -> Json {
 
 ///| Serialize an OperationIr to JSON.
 
-
-///| Serialize a ResponseVariant to JSON.
+///|
+/// Serialize a ResponseVariant to JSON.
 fn variant_to_json(v : ResponseVariant) -> Json {
   Json::object(
     Map([
@@ -202,20 +219,18 @@ fn variant_to_json(v : ResponseVariant) -> Json {
   )
 }
 
-///| Serialize ResponseStrategy to JSON.
+///|
+/// Serialize ResponseStrategy to JSON.
 fn strategy_to_json(s : ResponseStrategy) -> Json {
   match s {
-    SingleResult(tr) => Json::object(
-      Map([
-        ("kind", Json::string("single_result")),
-        ("type", type_ref_to_json(tr)),
-      ]),
-    )
-    UnitResult => Json::object(
-      Map([
-        ("kind", Json::string("unit_result")),
-      ]),
-    )
+    SingleResult(tr) =>
+      Json::object(
+        Map([
+          ("kind", Json::string("single_result")),
+          ("type", type_ref_to_json(tr)),
+        ]),
+      )
+    UnitResult => Json::object(Map([("kind", Json::string("unit_result"))]))
     ResponseEnum(variants) => {
       let out : Array[Json] = []
       for v in variants {
@@ -228,24 +243,23 @@ fn strategy_to_json(s : ResponseStrategy) -> Json {
         ]),
       )
     }
-    NoContent => Json::object(
-      Map([
-        ("kind", Json::string("no_content")),
-      ]),
-    )
-    UnsupportedMediaType(mt) => Json::object(
-      Map([
-        ("kind", Json::string("unsupported_media_type")),
-        ("media_type", Json::string(mt)),
-      ]),
-    )
+    NoContent => Json::object(Map([("kind", Json::string("no_content"))]))
+    UnsupportedMediaType(mt) =>
+      Json::object(
+        Map([
+          ("kind", Json::string("unsupported_media_type")),
+          ("media_type", Json::string(mt)),
+        ]),
+      )
   }
 }
+
+///|
 fn operation_to_json(op : OperationIr) -> Json {
   Json::object(
     Map([
       ("operation_id", Json::string(op.operation_id)),
-      ("method", Json::string(method_to_string(op.method))),
+      ("http_method", Json::string(method_to_string(op.http_method))),
       ("path", Json::string(op.path)),
       ("fn_name", Json::string(op.fn_name)),
       ("tags", strings_to_json(op.tags)),
@@ -260,7 +274,8 @@ fn operation_to_json(op : OperationIr) -> Json {
   )
 }
 
-///| Serialize AuthSchemeIr to JSON.
+///|
+/// Serialize AuthSchemeIr to JSON.
 fn auth_scheme_to_json(s : AuthSchemeIr) -> Json {
   Json::object(
     Map([
@@ -284,7 +299,8 @@ fn auth_scheme_to_json(s : AuthSchemeIr) -> Json {
   )
 }
 
-///| Serialize auth schemes array to JSON.
+///|
+/// Serialize auth schemes array to JSON.
 fn auth_schemes_to_json(schemes : Array[AuthSchemeIr]) -> Json {
   let out : Array[Json] = []
   for s in schemes {
@@ -293,7 +309,8 @@ fn auth_schemes_to_json(schemes : Array[AuthSchemeIr]) -> Json {
   Json::array(out)
 }
 
-///| Serialize operations array to JSON.
+///|
+/// Serialize operations array to JSON.
 fn operations_to_json(ops : Array[OperationIr]) -> Json {
   let out : Array[Json] = []
   for op in ops {
@@ -302,7 +319,8 @@ fn operations_to_json(ops : Array[OperationIr]) -> Json {
   Json::array(out)
 }
 
-///| Serialize the full ApiIr to canonical JSON.
+///|
+/// Serialize the full ApiIr to canonical JSON.
 pub fn api_to_json(api : ApiIr) -> Json {
   Json::object(
     Map([
@@ -317,7 +335,8 @@ pub fn api_to_json(api : ApiIr) -> Json {
   )
 }
 
-///| Serialize ApiIr to a canonical JSON string.
+///|
+/// Serialize ApiIr to a canonical JSON string.
 pub fn api_to_json_string(api : ApiIr) -> String {
   api_to_json(api).stringify() + "\n"
 }

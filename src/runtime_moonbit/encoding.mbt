@@ -16,7 +16,7 @@ fn is_unreserved_byte(byte : Byte) -> Bool {
   n == 0x2D || // -
   n == 0x2E || // .
   n == 0x5F || // _
-  n == 0x7E    // ~
+  n == 0x7E // ~
 }
 
 ///|
@@ -106,7 +106,9 @@ pub fn encode_query_array_joined(
 ///|
 /// Encode a header value (simple style).
 /// Simple style passes through as-is.
-pub fn encode_header_value(value : String) -> String { value }
+pub fn encode_header_value(value : String) -> String {
+  value
+}
 
 ///|
 /// Encode header array values (simple style).
@@ -148,17 +150,16 @@ pub fn build_query_string(params : Array[(String, String)]) -> String {
 ///|
 /// Interpolate path parameters into a path template.
 /// Replaces {paramName} placeholders with encoded values from the map.
-pub fn interpolate_path(
-  path : String,
-  params : Map[String, String],
-) -> String {
+pub fn interpolate_path(path : String, params : Map[String, String]) -> String {
   let out = StringBuilder::new()
   let mut i = 0
   let bytes = @utf8.encode(path)
   while i < bytes.length() {
     if bytes[i].to_int() == 0x7B { // '{'
       let mut end = i + 1
-      while end < bytes.length() && bytes[end].to_int() != 0x7D { end = end + 1 }
+      while end < bytes.length() && bytes[end].to_int() != 0x7D {
+        end = end + 1
+      }
       if end < bytes.length() {
         let name_view = bytes[i + 1:end]
         let name = name_view.to_string()

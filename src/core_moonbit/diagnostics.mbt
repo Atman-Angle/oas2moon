@@ -3,13 +3,15 @@
 ///
 /// Every diagnostic is deterministic and includes a JSON Pointer.
 
-///| Severity of a diagnostic.
+///|
+/// Severity of a diagnostic.
 pub enum Severity {
   Error
   Warning
 } derive(Eq, Debug)
 
-///| A single diagnostic message.
+///|
+/// A single diagnostic message.
 pub struct Diagnostic {
   code : String
   severity : Severity
@@ -19,9 +21,14 @@ pub struct Diagnostic {
   suggestion : String?
 } derive(Eq, Debug)
 
-///| Render a diagnostic as a human-readable string.
+///|
+/// Render a diagnostic as a human-readable string.
 pub fn diagnostic_to_string(d : Diagnostic) -> String {
-  let mut result = severity_label(d.severity) + ": " + d.code + ": " + d.json_pointer
+  let mut result = severity_label(d.severity) +
+    ": " +
+    d.code +
+    ": " +
+    d.json_pointer
   match d.operation_id {
     Some(id) => result = result + " [" + id + "]"
     None => ()
@@ -34,6 +41,7 @@ pub fn diagnostic_to_string(d : Diagnostic) -> String {
   result
 }
 
+///|
 fn severity_label(s : Severity) -> String {
   match s {
     Error => "ERROR"
@@ -41,8 +49,13 @@ fn severity_label(s : Severity) -> String {
   }
 }
 
-///| Create an error diagnostic.
-pub fn error_diagnostic(code : String, pointer : String, message : String) -> Diagnostic {
+///|
+/// Create an error diagnostic.
+pub fn error_diagnostic(
+  code : String,
+  pointer : String,
+  message : String,
+) -> Diagnostic {
   {
     code,
     severity: Error,
@@ -53,8 +66,13 @@ pub fn error_diagnostic(code : String, pointer : String, message : String) -> Di
   }
 }
 
-///| Create a warning diagnostic.
-pub fn warning_diagnostic(code : String, pointer : String, message : String) -> Diagnostic {
+///|
+/// Create a warning diagnostic.
+pub fn warning_diagnostic(
+  code : String,
+  pointer : String,
+  message : String,
+) -> Diagnostic {
   {
     code,
     severity: Warning,

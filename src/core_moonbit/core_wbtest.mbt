@@ -1,6 +1,5 @@
 ///|
 /// Integration tests for the canonical IR lowering.
-
 test "primitive and int64 mapping" {
   let i = map_schema(
     Json::object(
@@ -11,15 +10,14 @@ test "primitive and int64 mapping" {
     Scalar(name) => assert_eq(name, "Int64")
     _ => raise Failure("expected Scalar(Int64)")
   }
-  let b = map_schema(
-    Json::object(Map([("kind", Json::string("boolean"))])),
-  )
+  let b = map_schema(Json::object(Map([("kind", Json::string("boolean"))])))
   match b {
     Scalar(name) => assert_eq(name, "Bool")
     _ => raise Failure("expected Scalar(Bool)")
   }
 }
 
+///|
 test "array and local ref mapping" {
   let r = map_schema(
     Json::object(Map([("ref", Json::string("#/components/schemas/Pet"))])),
@@ -37,20 +35,23 @@ test "array and local ref mapping" {
     ),
   )
   match a {
-    Array(item) => match item {
-      Scalar(name) => assert_eq(name, "String")
-      _ => raise Failure("expected Array(Scalar(String))")
-    }
+    Array(item) =>
+      match item {
+        Scalar(name) => assert_eq(name, "String")
+        _ => raise Failure("expected Array(Scalar(String))")
+      }
     _ => raise Failure("expected Array")
   }
 }
 
+///|
 test "naming reserved and enum values" {
   assert_eq(snake("X-Trace"), "x_trace")
   assert_eq(snake("type"), "type_")
   assert_eq(pascal("available"), "Available")
 }
 
+///|
 test "operation ordering" {
   let d = Json::object(
     Map([
@@ -69,6 +70,7 @@ test "operation ordering" {
   assert_eq(before(d, p), true)
 }
 
+///|
 test "canonical json is deterministic" {
   let x = Json::object(
     Map([("b", Json::number(2.0)), ("a", Json::string("x"))]),
@@ -76,14 +78,17 @@ test "canonical json is deterministic" {
   assert_eq(x.stringify(), x.stringify())
 }
 
+///|
 test "snake converts getPetById" {
   assert_eq(snake("getPetById"), "get_pet_by_id")
 }
 
+///|
 test "pascal handles PetStatus" {
   assert_eq(pascal("PetStatus"), "PetStatus")
 }
 
+///|
 test "unique returns first free name" {
   let taken : Map[String, Bool] = Map([])
   let a = unique("foo", taken)

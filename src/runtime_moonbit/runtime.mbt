@@ -167,7 +167,8 @@ pub fn auth_headers(
       "bearer" => {
         let token = match cfg.bearer_token() {
           Some(t) => t
-          None => raise InvalidRequest("missing bearer token for " + requirement)
+          None =>
+            raise InvalidRequest("missing bearer token for " + requirement)
         }
         headers["Authorization"] = "Bearer " + token
       }
