@@ -328,6 +328,27 @@ compile_pass
 
 **出口**：连续生成比较全部通过，纳入 CI。
 
+**结果（2026-09-16，`feat/t13-determinism-hardening`）**：已完成。
+
+- `tests/test_t13_determinism.py`（33 项）：10 个 spec（JSON/YAML/CRUD/5 种鉴权/负例）
+  连续两次生成的相对文件列表、逐文件字节、canonical IR 字节全部一致；`moon.pkg`
+  import 顺序符合固定契约；CLI 摘要文件列表等于固定布局；7 个 phase2 IR fixture
+  的 codegen 双跑字节一致；诊断顺序按 JSON pointer 有序且重复生成一致；全部产物
+  扫描无时间戳、随机 ID、绝对路径和生成器 scratch 目录。
+- 反例测试（不是放宽比较，而是更强的语义等价）：把 spec 每个 JSON 对象的键序
+  反转后重新生成，产物与 canonical IR 必须与原文逐字节一致；把 normalized model
+  的键序反转后重新 lower，canonical IR 必须一致。
+- 修复的不稳定 map 迭代：`src/frontend_adapter/main.mbt` 原先直接把
+  `properties` / `components.schemas` / `securitySchemes` 的 `Map` 迭代序写进
+  Frontend Model，把文档键序泄漏到下游；现在统一经确定性键序重排后写出。
+  `src/core_moonbit/lower.mbt` 原先直接迭代 normalized model 的 `properties` /
+  `securitySchemes`，结构体字段顺序会随上游键序变化；现在先按确定性顺序收集键
+  再迭代，IR builder 自身即可保证规范顺序（对既有 fixture 输出字节无变化）。
+- 验证：`python -m pytest tests -q` → 64 passed；
+  `pwsh -NoProfile -File demo/petstore/run_demo.ps1` → 11/11 PASS。
+- CI：`.github/workflows/phase2-ubuntu.yml` 增加独立 determinism gate 步骤，
+  再跑完整测试套件。
+
 **依赖**：T06、T10。
 
 ---
@@ -425,7 +446,7 @@ T13 → T12 → T14 → T15
 | T10 | CLI | DONE | `tests/test_t10_cli.py`（含并发 scratch-dir 回归测试）；`demo/petstore/run_demo.ps1` 走真实 CLI；已在 `main` |
 | T11 | E2E Demo | DONE | `pwsh -NoProfile -File demo/petstore/run_demo.ps1`：11/11 通过；`python -m pytest tests -q`：31 项通过 |
 | T12 | Corpus | TODO | 建立统计脚本接口（依赖 T11/T13） |
-| T13 | Determinism | TODO | demo 已覆盖单 Spec 双生成；语料级确定性仍需补齐 |
+| T13 | Determinism | DONE | `tests/test_t13_determinism.py`（33 项）：语料双生成字节一致、spec/normalized model 键序反转不变、IR 顺序不变、诊断有序、无时间戳/随机 ID/绝对路径；CI 已加 determinism gate；分支 `feat/t13-determinism-hardening` |
 | T14 | CI | IN_PROGRESS | `.github/workflows/demo-windows.yml` 已加入并做 YAML 校验；尚未在 GitHub runner 上实际跑过 |
 | T15 | Release | TODO | README、支持矩阵、FAQ 与答辩脚本 |
 
@@ -446,8 +467,9 @@ wire 值（例如 `"PetStatus::Available"`）。这违反了 V1 的 local `$ref`
 `"$ref": "#/components/schemas/PetStatus"`，T11 demo 也持续验证 local `$ref`
 可生成并编译。
 
-当前已合入 `main` 的任务链为 T06、T07、T09、T10、T11；剩余工作是
-T12 corpus/metrics、T13 corpus 级确定性、T14 GitHub CI 实跑和 T15 发布文档。
+当前已合入 `main` 的任务链为 T06、T07、T09、T10、T11；T13 已完成，待在
+`feat/t13-determinism-hardening` 上评审合并。剩余工作是 T12 corpus/metrics、
+T14 GitHub CI 实跑和 T15 发布文档。
 
 ## 7. 风险与升级规则
 

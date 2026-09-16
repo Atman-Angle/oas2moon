@@ -144,7 +144,7 @@ implemented and exercised end to end on Windows.
 | T10 | CLI `generate` | ✅ COMPLETE |
 | T11 | Petstore end-to-end demo | ✅ COMPLETE |
 | T12 | Real-world corpus & metrics | ⬜ NOT STARTED |
-| T13 | Determinism hardening (corpus-wide) | ⬜ NOT STARTED |
+| T13 | Determinism hardening (corpus-wide) | ✅ COMPLETE |
 | T14 | Cross-platform CI | 🔄 IN PROGRESS |
 | T15 | Release documentation | ⬜ NOT STARTED |
 
@@ -188,8 +188,6 @@ error paths on the wire. Logs and the raw capture land in
 
 - **Real-world corpus**: only the Petstore fixture is validated; GitHub/OpenAI
   subsets (T12) are not.
-- **Corpus-wide determinism**: the demo proves determinism for one spec; T13
-  has not extended it to the corpus or to diagnostics ordering.
 - **Cross-platform CI**: `.github/workflows/demo-windows.yml` runs the demo on
   Windows runners but has not yet executed on GitHub; there is no Linux job yet.
 - **Response enums and `UnsupportedMediaType`** are modelled in the IR but have

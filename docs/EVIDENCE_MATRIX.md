@@ -18,9 +18,9 @@ Legend: **FROZEN** = documented contract; **SPIKE** = must be verified before im
 | end-to-end demo | `oas2moon generate` -> compile -> real server -> typed calls | `demo/petstore/run_demo.ps1` (11 checks, exit 0 on Windows) | TEST-T11 |
 | auth on the wire | bearer, basic, api-key header and api-key query all validated by a real server | `demo/petstore/fixture_server.py` + `demo/petstore/integration/main.mbt` | TEST-T11 |
 | error surfacing | non-2xx -> `Http(op, status, ...)`; missing credential -> `Configuration` | generated client assertions in the T11 driver | TEST-T11 |
-| regeneration determinism | two generations byte-identical, including the emitted IR | `run_demo.ps1` step 12 (SHA-256 per file) | TEST-T11 |
+| regeneration determinism | two generations byte-identical, including the emitted IR | `run_demo.ps1` step 12 (SHA-256 per file); `tests/test_t13_determinism.py` over the spec + IR corpus | TEST-T11/T13 |
 | generated call shape | required params positional, optional labelled, async + `raise SdkError` | `docs/DECISIONS.md` §12 + ecosystem reference + generated package compile | FROZEN + TEST-T11 |
-| deterministic ordering | UTF-8 bytewise map keys; canonical sort for derived collections; stable bytes | generate twice, compare files/hashes | FROZEN + TEST-T13 |
+| deterministic ordering | one deterministic key order for unordered maps (MoonBit `String` shortlex: shorter first, then code unit); canonical sort for derived collections; stable bytes | `tests/test_t13_determinism.py`: repeated runs, reversed spec key order, reversed normalized-model key order, canonical IR collection order, fixed `moon.pkg` import order | FROZEN + TEST-T13 |
 
 ## Resolved by T11
 
@@ -36,8 +36,6 @@ Legend: **FROZEN** = documented contract; **SPIKE** = must be verified before im
 
 - T12 has not run the generator across a real-world corpus or measured
   supported/rejected operation rates.
-- T13 has not extended determinism comparison from the single Petstore demo to
-  a corpus and diagnostic ordering.
 - T14 has a Windows workflow file, but it has not yet run on GitHub and there is
   no Linux job.
 - Response enums and `UnsupportedMediaType` are modeled but lack an end-to-end
