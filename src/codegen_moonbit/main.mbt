@@ -1015,6 +1015,8 @@ fn emit_operation(out : StringBuilder, op : OperationIr) -> Unit {
       out,
       "  let headers = auth_headers(self.config, " +
       string_array_to_moon(op.security) +
+      ", operation_id=" +
+      quoted(op.operation_id) +
       ")",
     )
   } else {
@@ -1165,7 +1167,14 @@ fn emit_operation(out : StringBuilder, op : OperationIr) -> Unit {
   }
   line(out, "  let response = send(self.transport, request)")
   let statuses = success_status_list(op)
-  line(out, "  expect_status(response, " + int_list_to_moon(statuses) + ")")
+  line(
+    out,
+    "  expect_status(response, " +
+    int_list_to_moon(statuses) +
+    ", operation_id=" +
+    quoted(op.operation_id) +
+    ")",
+  )
   match op.response_strategy {
     SingleResult(tr) => {
       let tname = render_type(tr)
@@ -1175,15 +1184,42 @@ fn emit_operation(out : StringBuilder, op : OperationIr) -> Unit {
             Some("Json") => {
               line(out, "  @json.parse(response.body) catch {")
               line(
-                out, "    _ => raise Decode(\"failed to parse JSON response\")",
+                out,
+                "    _ => raise Decode(" +
+                quoted(op.operation_id) +
+                ", \"failed to parse JSON response\")",
               )
               line(out, "  }")
             }
-            Some(_) => line(out, "  (decode_json(response) : " + tname + ")")
+            Some(_) =>
+              line(
+                out,
+                "  (decode_json(response, operation_id=" +
+                quoted(op.operation_id) +
+                ") : " +
+                tname +
+                ")",
+              )
             None => abort("validated type is missing its name")
           }
-        "named" => line(out, "  (decode_json(response) : " + tname + ")")
-        "array" => line(out, "  (decode_json(response) : " + tname + ")")
+        "named" =>
+          line(
+            out,
+            "  (decode_json(response, operation_id=" +
+            quoted(op.operation_id) +
+            ") : " +
+            tname +
+            ")",
+          )
+        "array" =>
+          line(
+            out,
+            "  (decode_json(response, operation_id=" +
+            quoted(op.operation_id) +
+            ") : " +
+            tname +
+            ")",
+          )
         _ => abort("validated type has an unsupported kind")
       }
     }
@@ -1195,10 +1231,22 @@ fn emit_operation(out : StringBuilder, op : OperationIr) -> Unit {
         line(out, "    " + v.status.to_string() + " => {")
         let tname = render_type(v.type_ref)
         line(out, "      " + response_enum_name(op) + "::" + variant_name(v))
-        line(out, "      (decode_json(response) : " + tname + ")")
+        line(
+          out,
+          "      (decode_json(response, operation_id=" +
+          quoted(op.operation_id) +
+          ") : " +
+          tname +
+          ")",
+        )
         line(out, "    }")
       }
-      line(out, "    _ => raise HttpStatus(response.status, response.body)")
+      line(
+        out,
+        "    _ => raise Http(" +
+        quoted(op.operation_id) +
+        ", response.status, response.headers, response.body)",
+      )
       line(out, "  }")
     }
     UnsupportedMediaType(mt) =>
