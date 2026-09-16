@@ -56,5 +56,8 @@ jobs:
           moon fmt --check
           moon check --target native --deny-warn
 
+      - name: Determinism gate (T13)
+        run: python -m pytest tests/test_t13_determinism.py -q
+
       - name: Run all tests (Phase 1, 1.5, 2)
         run: pytest -q tests

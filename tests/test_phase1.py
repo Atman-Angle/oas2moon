@@ -34,7 +34,11 @@ def test_frontend_model_version_and_petstore(tmp_path):
     assert model.version[:2] == (3, 0)
     assert [name for name, _ in model.schemas] == ["Pet", "PetStatus"]
     assert [op.operation_id for op in model.operations] == ["deletePet", "addPet", "getPetById"]
-    assert model.schemas[0][1].properties[3][1].ref == "#/components/schemas/PetStatus"
+    pet = dict(model.schemas[0][1].properties)
+    # Property order is canonicalized by the adapter, so look the field up by
+    # name instead of by position: the position is not part of the contract.
+    assert set(pet) == {"id", "name", "tags", "owner", "status", "nickname"}
+    assert pet["status"].ref == "#/components/schemas/PetStatus"
 
 
 def test_yaml_json_normalize_identical(tmp_path):

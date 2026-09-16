@@ -140,7 +140,9 @@ DIAG <code> <severity> <location>: <message>
 
 ## 10. Determinism
 
-Sort all unordered source maps by UTF-8 bytewise key order. Preserve array order where OpenAPI gives semantic order; otherwise sort normalized operations, schemas, parameters, responses, imports, files, and diagnostics by their canonical keys. Use stable naming collision rules and stable newline/encoding. Never emit timestamps, random IDs, machine paths, environment-dependent ordering, or hash seeds.
+Sort all unordered source maps by one deterministic key order. Preserve array order where OpenAPI gives semantic order; otherwise sort normalized operations, schemas, parameters, responses, imports, files, and diagnostics by their canonical keys. Use stable naming collision rules and stable newline/encoding. Never emit timestamps, random IDs, machine paths, environment-dependent ordering, or hash seeds.
+
+**Amendment 2026-09-16 (T13).** The implemented comparator is MoonBit's `String` `Compare`, which is *shortlex* (shorter strings first, then UTF-16 code-unit order), not UTF-8 bytewise order. Earlier wording said "UTF-8 bytewise"; that was never what the code did. T13 verified the shortlex order is a strict total order and that output is byte-identical across repeated runs, reversed spec key order, and reversed normalized-model key order, so shortlex is the rule this project commits to. Switching to bytewise order would reorder generated struct fields for some inputs and is therefore a deliberate decision, not a bug fix.
 
 ## 11. Evidence and change control
 
