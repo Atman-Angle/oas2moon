@@ -108,7 +108,7 @@ def gen_client(data):
     return "\n".join(lines)
 
 
-def test_all():
+def run_all():
     print("="*60)
     print("T03: GET Minimal Complete Vertical Slice")
     print("="*60)
@@ -126,14 +126,16 @@ def test_all():
     r = run(["moon","run",".","--target","native","--",str(norm),str(canon_path)], cwd=CORE_DIR)
     ok = r.returncode == 0 and canon_path.exists()
     results.append(("core", ok, "")); check("core: canonical IR", ok)
-    if not ok: return results
+    if not ok:
+        return results
     data = json.load(open(canon_path))
     
     gen = OUTPUT_ROOT / "generated"
     test_code = "\n".join(["///|",'test "client_constructs" {',"  let t = CaptureTransport::new(Response::new(200))","  let _c = Client::new(t)","}",""])
     ok = gen_sdk(gen, data, test_code=test_code)
     results.append(("codegen", ok, "")); check("codegen: SDK generation", ok)
-    if not ok: return results
+    if not ok:
+        return results
     for f in sorted(gen.iterdir()):
         if not f.name.startswith("_"): print(f"    {f.name} ({f.stat().st_size}b)")
     
@@ -183,5 +185,5 @@ def test_all():
     return results
 
 if __name__ == "__main__":
-    r = test_all()
+    r = run_all()
     sys.exit(0 if all(x[1] for x in r) else 1)

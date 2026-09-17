@@ -92,7 +92,7 @@ def gen_sdk(out_dir, canonical_ir_path, test_code=None):
     return True
 
 
-def test_all():
+def run_all():
     print("=" * 60)
     print("T06: Operation MoonBit Codegen")
     print("=" * 60)
@@ -302,5 +302,5 @@ def test_all():
 
 
 if __name__ == "__main__":
-    r = test_all()
+    r = run_all()
     sys.exit(0 if all(x[1] for x in r) else 1)
