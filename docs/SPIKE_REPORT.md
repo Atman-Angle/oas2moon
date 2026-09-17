@@ -1,5 +1,11 @@
 # Feasibility Spike Report — oas2moon
 
+> **Historical record, not current release evidence.** This report preserves
+> the 2026-09-13 feasibility investigation. Its former runner scripts were
+> removed because they invoked a deleted spike generator; use
+> `docs/ACCEPTANCE.md`, `demo/petstore/run_demo.ps1`, and the hosted CI workflow
+> for current evidence.
+
 Date: 2026-09-13
 Repository: `D:\oas2moon`
 

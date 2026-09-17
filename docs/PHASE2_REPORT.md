@@ -1,5 +1,8 @@
 # Phase 2 Report — Model Generation
 
+> **Historical report.** It preserves phase evidence only; see
+> `docs/ACCEPTANCE.md` for current verification.
+
 ## Metadata
 
 | Field | Value |

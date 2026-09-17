@@ -444,11 +444,11 @@ T13 → T12 → T14 → T15
 | T08 | 结构化错误 | DONE | T08 语义由 T07 的六变体 `SdkError` 覆盖；原分支因 local `$ref` fixture 回归废弃，见 §6.1 |
 | T09 | 鉴权 | DONE | T11 在真实 server 上验证 bearer/basic/apiKey header/apiKey query；已在 `main` |
 | T10 | CLI | DONE | `tests/test_t10_cli.py`（含并发 scratch-dir 回归测试）；`demo/petstore/run_demo.ps1` 走真实 CLI；已在 `main` |
-| T11 | E2E Demo | DONE | `pwsh -NoProfile -File demo/petstore/run_demo.ps1`：11/11 通过；`python -m pytest tests -q`：31 项通过 |
+| T11 | E2E Demo | DONE | `pwsh -NoProfile -File demo/petstore/run_demo.ps1`；本地结果必须以当前运行输出为准 |
 | T12 | Corpus | TODO | 建立统计脚本接口（依赖 T11/T13） |
 | T13 | Determinism | DONE | `tests/test_t13_determinism.py`（33 项）：语料双生成字节一致、spec/normalized model 键序反转不变、IR 顺序不变、诊断有序、无时间戳/随机 ID/绝对路径；CI 已加 determinism gate；分支 `feat/t13-determinism-hardening` |
-| T14 | CI | IN_PROGRESS | `.github/workflows/demo-windows.yml` 已加入并做 YAML 校验；尚未在 GitHub runner 上实际跑过 |
-| T15 | Release | TODO | README、支持矩阵、FAQ 与答辩脚本 |
+| T14 | CI | DONE | `cross-platform-ci` run `35177945624`：Ubuntu/Windows 均 success（commit `040f488`） |
+| T15 | Release | DONE | README、支持矩阵、验收/依赖材料、答辩脚本与仓库卫生记录 |
 
 ### 6.1 T08 结论与分支收尾
 
@@ -467,9 +467,8 @@ wire 值（例如 `"PetStatus::Available"`）。这违反了 V1 的 local `$ref`
 `"$ref": "#/components/schemas/PetStatus"`，T11 demo 也持续验证 local `$ref`
 可生成并编译。
 
-当前已合入 `main` 的任务链为 T06、T07、T09、T10、T11；T13 已完成，待在
-`feat/t13-determinism-hardening` 上评审合并。剩余工作是 T12 corpus/metrics、
-T14 GitHub CI 实跑和 T15 发布文档。
+当前发布证据的主要缺口是 T12 corpus/metrics；T14 的 hosted Ubuntu/Windows
+记录已可访问，T15 发布材料已完成。历史任务状态以相关提交和当前验收文档为准。
 
 ## 7. 风险与升级规则
 
