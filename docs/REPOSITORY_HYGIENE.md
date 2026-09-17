@@ -13,6 +13,7 @@ MoonBit owns parsing adaptation, support validation, Canonical Client IR, type m
 | Remaining `spike/` MoonBit sources | Kept, marked historical | They document feasibility experiments but must not be used as production or current verification evidence. |
 | `tests/reference_python/` | Kept as test-only reference oracle | Imported by `test_phase1.py`, `test_phase1_5.py`, and `test_phase2.py`; it is not under `src/` and does not drive the production CLI. |
 | `demo/petstore/gen_tests.py` | Kept | Called twice by `run_demo.ps1` to add test-only generated-package tests. It is not a generator implementation. |
+| `tests/test_t03.py`, `tests/test_t06.py`, `tests/test_t09.py` | Removed | Legacy manual runners were not invoked by pytest, CI, Demo, imports, or scripts. Their still-valid behavior is covered by `test_t10_cli.py` compilation, `test_t13_determinism.py`, runtime MoonBit tests, and the real HTTP Petstore Demo. |
 
 Historical reports may preserve old dates, paths, and observations, but are not current evidence. `docs/SPIKE_REPORT.md` is explicitly labelled historical; current evidence is limited to the commands and hosted run linked from `ACCEPTANCE.md`.
 
