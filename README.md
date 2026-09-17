@@ -127,10 +127,8 @@ Generated operations never import the HTTP library: they call
 ## Status
 
 **Stage: V1 verified for the Petstore profile.** The full pipeline is
-implemented and exercised end to end locally on Windows. Cross-platform CI is
-configured for Ubuntu and Windows in `.github/workflows/cross-platform-ci.yml`;
-hosted runner results should be treated as pending until GitHub Actions has run
-that workflow on the branch or PR being evaluated.
+implemented and exercised end to end locally on Windows and on hosted
+Ubuntu/Windows runners through `.github/workflows/cross-platform-ci.yml`.
 
 | Task | Scope | Status |
 |---|---|---|
@@ -148,7 +146,7 @@ that workflow on the branch or PR being evaluated.
 | T11 | Petstore end-to-end demo | ✅ COMPLETE |
 | T12 | Real-world corpus & metrics | ⬜ NOT STARTED |
 | T13 | Determinism hardening (corpus-wide) | ✅ COMPLETE |
-| T14 | Cross-platform CI | ✅ CONFIGURED; HOSTED RUN PENDING |
+| T14 | Cross-platform CI | ✅ COMPLETE |
 | T15 | Release documentation | ⬜ NOT STARTED |
 
 ### What works today
@@ -178,7 +176,7 @@ The claim above is backed by the demo, not by inspection:
 
 ```pwsh
 pwsh -NoProfile -File demo/petstore/run_demo.ps1     # 11/11 checks, exit 0
-python -m pytest tests -q                            # 31 passed (2 new scratch-dir tests)
+python -m pytest tests -q                            # 59 passed
 ```
 
 The demo generates through the real CLI, compiles the generated package, runs
@@ -205,15 +203,13 @@ error paths on the wire. Logs and the raw capture land in
 Windows uses PowerShell steps and the MSVC native toolchain. Ubuntu uses the
 MoonBit Unix installer and the runner C compiler. If either platform cannot
 install or run the MoonBit native toolchain, the workflow fails instead of
-recording an unverified compile claim.
+recording an unverified compile claim. The hosted run for commit `040f488`
+passed both jobs: <https://github.com/Atman-Angle/oas2moon/actions/runs/35177945624>.
 
 ### What is not yet implemented
 
 - **Real-world corpus**: only the Petstore fixture is validated; GitHub/OpenAI
   subsets (T12) are not.
-- **Hosted CI evidence**: cross-platform CI is defined, but this local branch
-  cannot itself prove the hosted Ubuntu/Windows runner result until GitHub
-  Actions executes the workflow.
 - **Response enums and `UnsupportedMediaType`** are modelled in the IR but have
   no end-to-end demo coverage.
 - **Streaming/binary** responses, multipart, XML, OAuth flows, and
