@@ -822,7 +822,7 @@ fn path_join(directory : String, file : String) -> String {
 
 ///|
 fn join_strings(parts : Array[String], sep : String) -> String {
-  let out = StringBuilder::new()
+  let out = StringBuilder()
   for i, part in parts {
     if i > 0 {
       out.write_string(sep)
@@ -837,7 +837,7 @@ fn join_strings(parts : Array[String], sep : String) -> String {
 
 ///|
 fn pascal_from_snake(snake : String) -> String {
-  let out = StringBuilder::new()
+  let out = StringBuilder()
   let mut upper_next = true
   for ch in snake {
     if ch == '_' {
@@ -896,18 +896,18 @@ fn string_array_to_moon(strs : Array[String]) -> String {
 fn build_path_expr(op : OperationIr) -> String {
   let path = op.path
   let parts : Array[String] = []
-  let mut buf = StringBuilder::new()
+  let mut buf = StringBuilder()
   let mut in_brace = false
-  let mut brace_buf = StringBuilder::new()
+  let mut brace_buf = StringBuilder()
   for ch in path {
     if ch == '{' {
       let lit = buf.to_string()
       if lit.length() > 0 {
         parts.push(quoted(lit))
-        buf = StringBuilder::new()
+        buf = StringBuilder()
       }
       in_brace = true
-      brace_buf = StringBuilder::new()
+      brace_buf = StringBuilder()
     } else if ch == '}' {
       in_brace = false
       let wire_name = brace_buf.to_string()
@@ -1418,7 +1418,6 @@ fn package_file(needs_string : Bool, has_operations : Bool) -> String {
   if has_operations {
     imports.push("\"moonbitlang/core/encoding/utf8\"")
     imports.push("\"moonbitlang/async/http\"")
-    imports.push("\"moonbitlang/async/io\"")
   }
   if needs_string {
     imports.push("\"moonbitlang/core/string\"")

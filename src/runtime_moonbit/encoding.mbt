@@ -24,7 +24,7 @@ fn is_unreserved_byte(byte : Byte) -> Bool {
 /// Reserved characters and non-ASCII bytes are encoded as %XX.
 /// Unreserved characters (A-Z, a-z, 0-9, -, ., _, ~) pass through.
 pub fn percent_encode(value : String) -> String {
-  let out = StringBuilder::new(size_hint=value.length() * 3)
+  let out = StringBuilder(size_hint=value.length() * 3)
   for byte in @utf8.encode(value) {
     if is_unreserved_byte(byte) {
       out.write_char(byte.to_char())
@@ -49,7 +49,7 @@ pub fn encode_path_value(value : String) -> String {
 ///|
 /// Encode multiple values for path insertion (simple style, array).
 pub fn encode_path_array(values : Array[String]) -> String {
-  let out = StringBuilder::new()
+  let out = StringBuilder()
   let mut first = true
   for v in values {
     if first {
@@ -90,7 +90,7 @@ pub fn encode_query_array_joined(
   values : Array[String],
 ) -> (String, String) {
   let encoded_name = percent_encode(name)
-  let encoded_values = StringBuilder::new()
+  let encoded_values = StringBuilder()
   let mut first = true
   for v in values {
     if first {
@@ -114,7 +114,7 @@ pub fn encode_header_value(value : String) -> String {
 /// Encode header array values (simple style).
 /// Values are comma-separated.
 pub fn encode_header_array(values : Array[String]) -> String {
-  let out = StringBuilder::new()
+  let out = StringBuilder()
   let mut first = true
   for v in values {
     if first {
@@ -131,7 +131,7 @@ pub fn encode_header_array(values : Array[String]) -> String {
 /// Build a query string from encoded key-value pairs.
 /// Returns the query string without the leading ?.
 pub fn build_query_string(params : Array[(String, String)]) -> String {
-  let out = StringBuilder::new()
+  let out = StringBuilder()
   let mut first = true
   for pair in params {
     let (key, value) = pair
@@ -151,7 +151,7 @@ pub fn build_query_string(params : Array[(String, String)]) -> String {
 /// Interpolate path parameters into a path template.
 /// Replaces {paramName} placeholders with encoded values from the map.
 pub fn interpolate_path(path : String, params : Map[String, String]) -> String {
-  let out = StringBuilder::new()
+  let out = StringBuilder()
   let mut i = 0
   let bytes = @utf8.encode(path)
   while i < bytes.length() {

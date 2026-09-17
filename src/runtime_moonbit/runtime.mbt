@@ -334,7 +334,7 @@ let base64_chars : Array[Char] = [
 /// platform codec for something this small and this well specified.
 fn base64_encode(input : String) -> String {
   let bytes = @utf8.encode(input)
-  let out = StringBuilder::new()
+  let out = StringBuilder()
   let mut i = 0
   while i < bytes.length() {
     let b0 = bytes[i].to_int() & 0xFF

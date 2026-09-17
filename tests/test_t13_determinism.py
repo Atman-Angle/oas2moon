@@ -246,7 +246,6 @@ _PKG_IMPORT_ORDER = [
     "moonbitlang/core/json",
     "moonbitlang/core/encoding/utf8",
     "moonbitlang/async/http",
-    "moonbitlang/async/io",
     "moonbitlang/async",
     "moonbitlang/core/string",
 ]
