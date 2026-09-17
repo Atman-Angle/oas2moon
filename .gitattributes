@@ -1,0 +1,3 @@
+# Preserve the upstream OAI Petstore sample byte-for-byte, including its
+# historical trailing space, so the manifest SHA-256 remains verifiable.
+fixtures/real-world/oai-petstore-3.0.yaml whitespace=-blank-at-eol

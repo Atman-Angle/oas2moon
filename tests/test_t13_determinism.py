@@ -35,6 +35,7 @@ SPEC_CORPUS: list[Path] = [
     FIXTURES_DIR / "petstore" / "openapi.json",
     FIXTURES_DIR / "petstore" / "openapi.yaml",
     FIXTURES_DIR / "petstore" / "openapi_crud.json",
+    FIXTURES_DIR / "real-world" / "oai-petstore-3.0.yaml",
     FIXTURES_DIR / "real-world" / "github-subset.json",
     FIXTURES_DIR / "real-world" / "jsonplaceholder-subset.json",
     FIXTURES_DIR / "real-world" / "openai-subset.json",

@@ -1,6 +1,6 @@
 # Evidence Matrix (T00)
 
-Date: 2026-09-16  
+Date: 2026-09-18
 Legend: **FROZEN** = documented contract; **SPIKE** = must be verified before implementation; **TEST** = required executable evidence.
 
 | Contract | Decision | Evidence required | Status |
@@ -34,19 +34,25 @@ Legend: **FROZEN** = documented contract; **SPIKE** = must be verified before im
 
 ## Resolved by T12
 
-- Real-world subset metrics: Petstore, a GitHub REST subset, an OpenAI subset
-  and a JSONPlaceholder subset are measured through `tools/corpus_metrics.py`;
-  see `docs/CORPUS_REPORT.md` for the exact counts.
-- Scope honesty: the report and README state these are curated subset metrics,
-  not full GitHub/OpenAI support claims.
+- The corpus harness measures generation, `moon fmt --check`, and `moon check`
+  for every non-pending manifest entry. The current report records 5/5
+  real-world specs compiled, 12/12 real-world operations supported, and the
+  expected `oneOf` control rejection.
+- The corpus includes the pinned official OAI Petstore 3.0 pass sample plus
+  project/curated subsets. It exposed reserved type name `Error`; the naming
+  regression now maps `error` to `ErrorValue` and is covered by MoonBit/Python
+  tests.
+- Scope honesty: the report and README state that these are bounded corpus
+  measurements, not full GitHub/OpenAI or arbitrary-document support claims.
 
 ## Known unresolved evidence gaps
 
-- T14 has a Windows workflow file, but it has not yet run on GitHub and there is
-  no Linux job.
+- T14 hosted evidence is available for both jobs: commit `040f488`,
+  `cross-platform-ci` run `35177945624` completed successfully on Ubuntu and
+  Windows. This historical run is not a substitute for a release-PR run.
 - Response enums and `UnsupportedMediaType` are modeled but lack an end-to-end
   demo case.
 
 ## Contradiction check
 
-Reviewed against `PROJECT_SPEC.md`, `ARCHITECTURE.md`, `SUPPORTED_OPENAPI.md`, `ACCEPTANCE.md`, `DEVELOPMENT_SPEC.md`, and `DEVELOPMENT_TASKS.md` on 2026-09-16. No intentional scope expansion was introduced. The only intentionally unresolved details are marked SPIKE; implementation must not present them as verified capabilities.
+Reviewed against `PROJECT_SPEC.md`, `ARCHITECTURE.md`, `SUPPORTED_OPENAPI.md`, `ACCEPTANCE.md`, `DEVELOPMENT_SPEC.md`, and `DEVELOPMENT_TASKS.md` on 2026-09-18. No intentional scope expansion was introduced. The only intentionally unresolved details are marked SPIKE; implementation must not present them as verified capabilities.

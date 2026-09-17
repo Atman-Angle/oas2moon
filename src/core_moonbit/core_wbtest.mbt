@@ -49,6 +49,7 @@ test "naming reserved and enum values" {
   assert_eq(snake("X-Trace"), "x_trace")
   assert_eq(snake("type"), "type_")
   assert_eq(pascal("available"), "Available")
+  assert_eq(pascal("error"), "ErrorValue")
 }
 
 ///|

@@ -14,6 +14,7 @@ guard the *rules* rather than the current numbers:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shutil
@@ -74,8 +75,14 @@ def test_manifest_entries_are_pinned_or_pending() -> None:
         label = entry["id"]
         assert entry.get("role") in {"real-world", "control"}, label
         if entry.get("kind") == "local":
-            assert (ROOT / entry["path"]).is_file(), f"{label}: missing local path"
+            local_path = ROOT / entry["path"]
+            assert local_path.is_file(), f"{label}: missing local path"
             assert entry.get("origin"), f"{label}: local source needs provenance"
+            if entry.get("sha256"):
+                actual = hashlib.sha256(local_path.read_bytes()).hexdigest()
+                assert actual.lower() == str(entry["sha256"]).lower(), (
+                    f"{label}: local fixture does not match its pinned sha256"
+                )
             continue
         if entry.get("kind") == "planned":
             assert entry.get("note"), f"{label}: planned source needs a next step"
@@ -111,6 +118,7 @@ def test_local_corpus_is_measurable() -> None:
     }
     assert {
         "petstore/openapi.json",
+        "oai/petstore-3.0",
         "github-rest/subset",
         "openai/subset",
         "jsonplaceholder/subset",

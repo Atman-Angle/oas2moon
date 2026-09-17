@@ -1,7 +1,60 @@
 {
   "manifestVersion": 1,
-  "comment": "T12 corpus manifest. `role` is `real-world` for the API subsets the published metrics come from, and `control` for local fixtures that only guard the machinery. Published numbers come from committed local subset files; future remote entries must stay `pending` until they carry a pinned commit and sha256.",
+  "comment": "T12 corpus manifest. `role` is `real-world` for documents/subsets the published metrics come from, and `control` for local fixtures that only guard the machinery. Published numbers come from committed local documents; future remote entries must stay `pending` until they carry a pinned commit and sha256.",
   "sources": [
+    {
+      "id": "control/scan-false-positive.json",
+      "kind": "local",
+      "role": "control",
+      "path": "fixtures/regression/scan_false_positive_input.json",
+      "origin": "control: `oneOf` inside example data must not be treated as a schema keyword",
+      "license": "project fixture"
+    },
+    {
+      "id": "control/unsupported-oneof.json",
+      "kind": "local",
+      "role": "control",
+      "path": "fixtures/unsupported/oneof.json",
+      "origin": "negative control: a keyword outside the V1 profile",
+      "license": "project fixture"
+    },
+    {
+      "id": "github-rest/subset",
+      "kind": "local",
+      "role": "real-world",
+      "path": "fixtures/real-world/github-subset.json",
+      "origin": "Curated V1-compatible subset from the public GitHub REST API description repository at https://github.com/github/rest-api-description, HEAD 2c0db91ff57dc7d0670be941320e5f7d8daa17fd",
+      "license": "GitHub REST API description repository license; subset contains only selected operation/schema facts",
+      "subset": "GET /repos/{owner}/{repo}; GET /users/{username}"
+    },
+    {
+      "id": "jsonplaceholder/subset",
+      "kind": "local",
+      "role": "real-world",
+      "path": "fixtures/real-world/jsonplaceholder-subset.json",
+      "origin": "Curated V1-compatible subset from the public JSONPlaceholder REST API documentation at https://jsonplaceholder.typicode.com",
+      "license": "JSONPlaceholder public documentation; subset contains only selected operation/schema facts",
+      "subset": "GET /posts/{id}; GET /users/{id}"
+    },
+    {
+      "id": "oai/petstore-3.0",
+      "kind": "local",
+      "role": "real-world",
+      "path": "fixtures/real-world/oai-petstore-3.0.yaml",
+      "origin": "Official archived OpenAPI Petstore 3.0 pass sample from OAI/OpenAPI-Specification commit c9f8f040e825a827bb011955bd41b7e2d899688f; source SHA-256 598136CB904E17E8EEEAD51AE33DD8D401FDFF455D2D74F3869C4AA5F2742266",
+      "license": "MIT as declared in the sample; upstream specification repository is Apache-2.0",
+      "subset": "full archived pass sample (3 operations)",
+      "sha256": "598136CB904E17E8EEEAD51AE33DD8D401FDFF455D2D74F3869C4AA5F2742266"
+    },
+    {
+      "id": "openai/subset",
+      "kind": "local",
+      "role": "real-world",
+      "path": "fixtures/real-world/openai-subset.json",
+      "origin": "Curated V1-compatible subset from the public OpenAI OpenAPI repository at https://github.com/openai/openai-openapi, HEAD ac89e26b5fa142cf9e0c4be4e19c1858607835c1",
+      "license": "OpenAI OpenAPI repository license; subset contains only selected operation/schema facts",
+      "subset": "GET /models; GET /models/{model}"
+    },
     {
       "id": "petstore/openapi.json",
       "kind": "local",
@@ -17,49 +70,6 @@
       "path": "fixtures/petstore/openapi.yaml",
       "origin": "same document as petstore/openapi.json, YAML encoding",
       "license": "Apache-2.0 (Swagger Petstore sample)"
-    },
-    {
-      "id": "control/unsupported-oneof.json",
-      "kind": "local",
-      "role": "control",
-      "path": "fixtures/unsupported/oneof.json",
-      "origin": "negative control: a keyword outside the V1 profile",
-      "license": "project fixture"
-    },
-    {
-      "id": "control/scan-false-positive.json",
-      "kind": "local",
-      "role": "control",
-      "path": "fixtures/regression/scan_false_positive_input.json",
-      "origin": "control: `oneOf` inside example data must not be treated as a schema keyword",
-      "license": "project fixture"
-    },
-    {
-      "id": "github-rest/subset",
-      "kind": "local",
-      "role": "real-world",
-      "path": "fixtures/real-world/github-subset.json",
-      "origin": "Curated V1-compatible subset from the public GitHub REST API description repository at https://github.com/github/rest-api-description, HEAD 2c0db91ff57dc7d0670be941320e5f7d8daa17fd",
-      "license": "GitHub REST API description repository license; subset contains only selected operation/schema facts",
-      "subset": "GET /repos/{owner}/{repo}; GET /users/{username}"
-    },
-    {
-      "id": "openai/subset",
-      "kind": "local",
-      "role": "real-world",
-      "path": "fixtures/real-world/openai-subset.json",
-      "origin": "Curated V1-compatible subset from the public OpenAI OpenAPI repository at https://github.com/openai/openai-openapi, HEAD ac89e26b5fa142cf9e0c4be4e19c1858607835c1",
-      "license": "OpenAI OpenAPI repository license; subset contains only selected operation/schema facts",
-      "subset": "GET /models; GET /models/{model}"
-    },
-    {
-      "id": "jsonplaceholder/subset",
-      "kind": "local",
-      "role": "real-world",
-      "path": "fixtures/real-world/jsonplaceholder-subset.json",
-      "origin": "Curated V1-compatible subset from the public JSONPlaceholder REST API documentation at https://jsonplaceholder.typicode.com",
-      "license": "JSONPlaceholder public documentation; subset contains only selected operation/schema facts",
-      "subset": "GET /posts/{id}; GET /users/{id}"
     }
   ]
 }

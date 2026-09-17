@@ -20,6 +20,8 @@ RESERVED = frozenset(
         "is", "let", "match", "mut", "noraise", "package", "priv", "pub",
         "raise", "return", "self", "static", "struct", "suberror", "test",
         "trait", "true", "try", "type", "while", "with",
+        # MoonBit reserved type names (PascalCase collision handling)
+        "Error",
         # generated helper names
         "client", "config", "json", "new", "to_json", "from_json", "to_wire",
     }
