@@ -193,14 +193,14 @@ error paths on the wire. Logs and the raw capture land in
 `ubuntu-latest` and `windows-latest`:
 
 - MoonBit toolchain installation and version check;
-- frontend adapter, core authority and codegen emitter `moon fmt --check` /
-  `moon check --target native --deny-warn`;
-- core MoonBit tests with `moon test --target native --deny-warn`;
+- frontend adapter, core authority and codegen emitter `moon fmt` followed by
+  `moon fmt --check` and `moon check --target native`;
+- core MoonBit tests with `moon test --target native`;
 - deterministic regeneration via `tests/test_t13_determinism.py`;
 - full generator and fixture tests with `python -m pytest tests -q`;
 - Petstore HTTP integration demo, including generated package `moon fmt`,
-  `moon check`, `moon test`, real local HTTP requests and byte-identical
-  regeneration.
+  `moon check --target native --deny-warn`, `moon test --target native
+  --deny-warn`, real local HTTP requests and byte-identical regeneration.
 
 Windows uses PowerShell steps and the MSVC native toolchain. Ubuntu uses the
 MoonBit Unix installer and the runner C compiler. If either platform cannot

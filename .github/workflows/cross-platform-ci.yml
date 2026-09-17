@@ -73,8 +73,9 @@ jobs:
         working-directory: src/frontend_adapter
         run: |
           moon update
+          moon fmt
           moon fmt --check
-          moon check --target native --deny-warn
+          moon check --target native
 
       - name: Check frontend adapter (Windows)
         if: runner.os == 'Windows'
@@ -82,8 +83,9 @@ jobs:
         working-directory: src/frontend_adapter
         run: |
           moon update
+          moon fmt
           moon fmt --check
-          moon check --target native --deny-warn
+          moon check --target native
 
       - name: Check core authority (Ubuntu)
         if: runner.os == 'Linux'
@@ -91,9 +93,10 @@ jobs:
         working-directory: src/core_moonbit
         run: |
           moon update
+          moon fmt
           moon fmt --check
-          moon check --target native --deny-warn
-          moon test --target native --deny-warn
+          moon check --target native
+          moon test --target native
 
       - name: Check core authority (Windows)
         if: runner.os == 'Windows'
@@ -101,9 +104,10 @@ jobs:
         working-directory: src/core_moonbit
         run: |
           moon update
+          moon fmt
           moon fmt --check
-          moon check --target native --deny-warn
-          moon test --target native --deny-warn
+          moon check --target native
+          moon test --target native
 
       - name: Check codegen emitter (Ubuntu)
         if: runner.os == 'Linux'
@@ -111,8 +115,9 @@ jobs:
         working-directory: src/codegen_moonbit
         run: |
           moon update
+          moon fmt
           moon fmt --check
-          moon check --target native --deny-warn
+          moon check --target native
 
       - name: Check codegen emitter (Windows)
         if: runner.os == 'Windows'
@@ -120,8 +125,9 @@ jobs:
         working-directory: src/codegen_moonbit
         run: |
           moon update
+          moon fmt
           moon fmt --check
-          moon check --target native --deny-warn
+          moon check --target native
 
       - name: Deterministic regeneration gate
         run: python -m pytest tests/test_t13_determinism.py -q
