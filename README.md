@@ -127,7 +127,10 @@ Generated operations never import the HTTP library: they call
 ## Status
 
 **Stage: V1 verified for the Petstore profile.** The full pipeline is
-implemented and exercised end to end on Windows.
+implemented and exercised end to end locally on Windows. Cross-platform CI is
+configured for Ubuntu and Windows in `.github/workflows/cross-platform-ci.yml`;
+hosted runner results should be treated as pending until GitHub Actions has run
+that workflow on the branch or PR being evaluated.
 
 | Task | Scope | Status |
 |---|---|---|
@@ -145,7 +148,7 @@ implemented and exercised end to end on Windows.
 | T11 | Petstore end-to-end demo | ✅ COMPLETE |
 | T12 | Real-world corpus & metrics | ⬜ NOT STARTED |
 | T13 | Determinism hardening (corpus-wide) | ✅ COMPLETE |
-| T14 | Cross-platform CI | 🔄 IN PROGRESS |
+| T14 | Cross-platform CI | ✅ CONFIGURED; HOSTED RUN PENDING |
 | T15 | Release documentation | ⬜ NOT STARTED |
 
 ### What works today
@@ -184,12 +187,33 @@ server that validates CRUD, all four auth schemes, and the 404/401/configuration
 error paths on the wire. Logs and the raw capture land in
 `demo/petstore/_out/`.
 
+### Platform verification
+
+`.github/workflows/cross-platform-ci.yml` runs the same verification gates on
+`ubuntu-latest` and `windows-latest`:
+
+- MoonBit toolchain installation and version check;
+- frontend adapter, core authority and codegen emitter `moon fmt --check` /
+  `moon check --target native --deny-warn`;
+- core MoonBit tests with `moon test --target native --deny-warn`;
+- deterministic regeneration via `tests/test_t13_determinism.py`;
+- full generator and fixture tests with `python -m pytest tests -q`;
+- Petstore HTTP integration demo, including generated package `moon fmt`,
+  `moon check`, `moon test`, real local HTTP requests and byte-identical
+  regeneration.
+
+Windows uses PowerShell steps and the MSVC native toolchain. Ubuntu uses the
+MoonBit Unix installer and the runner C compiler. If either platform cannot
+install or run the MoonBit native toolchain, the workflow fails instead of
+recording an unverified compile claim.
+
 ### What is not yet implemented
 
 - **Real-world corpus**: only the Petstore fixture is validated; GitHub/OpenAI
   subsets (T12) are not.
-- **Cross-platform CI**: `.github/workflows/demo-windows.yml` runs the demo on
-  Windows runners but has not yet executed on GitHub; there is no Linux job yet.
+- **Hosted CI evidence**: cross-platform CI is defined, but this local branch
+  cannot itself prove the hosted Ubuntu/Windows runner result until GitHub
+  Actions executes the workflow.
 - **Response enums and `UnsupportedMediaType`** are modelled in the IR but have
   no end-to-end demo coverage.
 - **Streaming/binary** responses, multipart, XML, OAuth flows, and
