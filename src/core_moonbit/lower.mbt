@@ -155,7 +155,16 @@ fn parse_model(schema_json : Json, model_name : String) -> ModelIr {
   let taken_fields : Map[String, Bool] = Map([])
   let parsed_fields : Array[FieldIr] = []
   let opt_fields : Array[FieldIr] = []
-  for name, child_schema in properties {
+  // `properties` is an unordered JSON map. The runtime Map preserves insertion
+  // order, so walking it directly would leak the key order of the incoming
+  // normalized JSON into the field order of the emitted struct.
+  let property_names : Array[String] = []
+  for name, _child_schema in properties {
+    property_names.push(name)
+  }
+  for name in sorted_strings(property_names) {
+    // The key came from this very map, so the indexed read cannot miss.
+    let child_schema = properties[name]
     let is_req = required_set.contains(name)
     let nullable = truth(get(child_schema, "nullable"))
     let presence_val = compute_presence(is_req, nullable)
@@ -190,7 +199,10 @@ fn parse_model(schema_json : Json, model_name : String) -> ModelIr {
 
 ///|
 /// Parse an operation JSON node into an OperationIr.
-fn parse_operation(op_json : Json, auth_kind_map : Map[String, String]) -> OperationIr {
+fn parse_operation(
+  op_json : Json,
+  auth_kind_map : Map[String, String],
+) -> OperationIr {
   let operation_id = text(get(op_json, "operationId"))
   let method_str = text(get(op_json, "method"))
   let path = text(get(op_json, "path"))
@@ -390,8 +402,13 @@ fn determine_response_strategy(
 }
 
 ///|
-/// Sort schema names deterministically.
-fn sorted_names(names : Array[String]) -> Array[String] {
+/// Sort names deterministically.
+///
+/// Only call this for values OpenAPI models as *unordered* maps (schema names,
+/// property names, security scheme names). OpenAPI arrays whose order carries
+/// meaning (parameters, responses, enum members, servers, required, tags) keep
+/// their source order and must never be routed through here.
+fn sorted_strings(names : Array[String]) -> Array[String] {
   let out : Array[String] = []
   let mut rem = names
   while rem.length() > 0 {
@@ -480,7 +497,13 @@ pub fn lower(root : Json, module_name : String) -> ApiIr {
   // Auth schemes + auth_kind_map
   let auth_schemes : Array[AuthSchemeIr] = []
   let auth_kind_map : Map[String, String] = Map([])
-  for name, scheme in obj(get(root, "securitySchemes")) {
+  // Same reasoning as struct properties: `securitySchemes` is an unordered map.
+  let scheme_names : Array[String] = []
+  for name, _scheme in obj(get(root, "securitySchemes")) {
+    scheme_names.push(name)
+  }
+  for name in sorted_strings(scheme_names) {
+    let scheme = obj(get(root, "securitySchemes"))[name]
     let kind = if text(get(scheme, "type")) == "http" &&
       text(get(scheme, "scheme")) == "bearer" {
       "bearer"
@@ -510,7 +533,7 @@ pub fn lower(root : Json, module_name : String) -> ApiIr {
   for name, _ in obj(get(root, "schemas")) {
     schema_names.push(name)
   }
-  for schema_name in sorted_names(schema_names) {
+  for schema_name in sorted_strings(schema_names) {
     let model_name = unique(pascal(schema_name), taken_model_names)
     let schema = get(get(root, "schemas"), schema_name)
     models.push(parse_model(schema, model_name))

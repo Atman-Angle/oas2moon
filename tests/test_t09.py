@@ -518,7 +518,7 @@ def run_auth_fixture(fixture_name):
     
     return results
 
-def test_all():
+def run_all():
     print("=" * 60)
     print("T09: Authentication")
     print("=" * 60)
@@ -545,5 +545,5 @@ def test_all():
     return all_pass
 
 if __name__ == "__main__":
-    ok = test_all()
+    ok = run_all()
     sys.exit(0 if ok else 1)

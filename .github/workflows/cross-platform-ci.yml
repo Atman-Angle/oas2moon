@@ -1,0 +1,151 @@
+name: cross-platform-ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Ubuntu
+            os: ubuntu-latest
+          - platform: Windows
+            os: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python test dependency
+        run: python -m pip install --disable-pip-version-check pytest
+
+      - name: Install MoonBit CLI (Ubuntu)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+
+      - name: Install MoonBit CLI (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          irm https://cli.moonbitlang.com/install/powershell.ps1 | iex
+          "$env:USERPROFILE\.moon\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Put the MSVC toolchain on PATH
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Verify toolchain (Ubuntu)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          moon --version
+          python --version
+          pytest --version
+          cc --version
+
+      - name: Verify toolchain (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          moon --version
+          python --version
+          pytest --version
+          where.exe cl
+
+      - name: Check frontend adapter (Ubuntu)
+        if: runner.os == 'Linux'
+        shell: bash
+        working-directory: src/frontend_adapter
+        run: |
+          moon update
+          moon fmt
+          moon fmt --check
+          moon check --target native
+
+      - name: Check frontend adapter (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        working-directory: src/frontend_adapter
+        run: |
+          moon update
+          moon fmt
+          moon fmt --check
+          moon check --target native
+
+      - name: Check core authority (Ubuntu)
+        if: runner.os == 'Linux'
+        shell: bash
+        working-directory: src/core_moonbit
+        run: |
+          moon update
+          moon fmt
+          moon fmt --check
+          moon check --target native
+          moon test --target native
+
+      - name: Check core authority (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        working-directory: src/core_moonbit
+        run: |
+          moon update
+          moon fmt
+          moon fmt --check
+          moon check --target native
+          moon test --target native
+
+      - name: Check codegen emitter (Ubuntu)
+        if: runner.os == 'Linux'
+        shell: bash
+        working-directory: src/codegen_moonbit
+        run: |
+          moon update
+          moon fmt
+          moon fmt --check
+          moon check --target native
+
+      - name: Check codegen emitter (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        working-directory: src/codegen_moonbit
+        run: |
+          moon update
+          moon fmt
+          moon fmt --check
+          moon check --target native
+
+      - name: Deterministic regeneration gate
+        run: python -m pytest tests/test_t13_determinism.py -q
+
+      - name: Run generator and fixture tests
+        run: python -m pytest tests -q
+
+      - name: Run Petstore HTTP integration demo
+        shell: pwsh
+        run: pwsh -NoProfile -File demo/petstore/run_demo.ps1
+
+      - name: Upload demo logs and wire capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: petstore-demo-evidence-${{ matrix.platform }}
+          path: |
+            demo/petstore/_out/logs
+            demo/petstore/_out/server_capture.json
+            demo/petstore/_out/canonical.json
+          if-no-files-found: warn

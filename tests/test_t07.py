@@ -287,7 +287,7 @@ def http_request(port, method, path, body=None, headers=None):
     return resp.status, resp_body
 
 
-def test_http_server():
+def run_http_server_test():
     """Real HTTP server integration test."""
     print("  --- Real HTTP Server Integration ---")
     results = []
@@ -371,7 +371,7 @@ def test_http_server():
 # Main test runner
 # ---------------------------------------------------------------------------
 
-def test_all():
+def run_all():
     print("=" * 60)
     print("T07: CRUD and JSON Request Body")
     print("=" * 60)
@@ -495,7 +495,7 @@ def test_all():
     check(f"deterministic ({len(f1)} files)", ok)
 
     # ---- Step 8: Real HTTP server integration ----
-    http_results = test_http_server()
+    http_results = run_http_server_test()
     for item in http_results:
         results.append(item + ('',))
 
@@ -513,5 +513,5 @@ def test_all():
 
 
 if __name__ == "__main__":
-    r = test_all()
-    sys.exit(0 if all(x[1] for x in r) else 1)
+    r = run_all()
+    sys.exit(0 if all(item[1] for item in r) else 1)

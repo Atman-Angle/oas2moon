@@ -71,6 +71,60 @@ fn raw_object_entries(json : Json) -> Map[String, Json] {
 }
 
 ///|
+/// Build an object whose keys are inserted in `keys` order.
+///
+/// JSON object key order carries no meaning, so the Frontend Model never
+/// forwards source order: every unordered map is re-emitted through this
+/// helper with sorted keys. The runtime `Map` preserves insertion order, so
+/// without this the parser would leak document order into the normalized
+/// model (see docs/DECISIONS.md §10).
+fn object_with_sorted_keys(
+  keys : Array[String],
+  lookup : (String) -> Json,
+) -> Json {
+  let out : Map[String, Json] = Map([])
+  for key in keys {
+    out[key] = lookup(key)
+  }
+  Json::object(out)
+}
+
+///|
+/// The keys of a JSON object in a deterministic (ascending) order.
+fn sorted_object_keys(json : Json) -> Array[String] {
+  let keys : Array[String] = []
+  for key, _value in raw_object_entries(json) {
+    keys.push(key)
+  }
+  sort_keys(keys)
+}
+
+///|
+/// Selection sort with strictly ascending comparison, so equal keys keep their
+/// relative order. Mirrors `sorted_strings` in the core authority.
+fn sort_keys(keys : Array[String]) -> Array[String] {
+  let out : Array[String] = []
+  let mut rem = keys
+  while rem.length() > 0 {
+    let mut best = 0
+    for i = 1; i < rem.length(); i = i + 1 {
+      if rem[i] < rem[best] {
+        best = i
+      }
+    }
+    out.push(rem[best])
+    let rest : Array[String] = []
+    for i, key in rem {
+      if i != best {
+        rest.push(key)
+      }
+    }
+    rem = rest
+  }
+  out
+}
+
+///|
 /// Declared server URLs, in document order.
 fn raw_servers(root : Json) -> Json {
   let urls : Array[Json] = []
@@ -86,10 +140,10 @@ fn raw_servers(root : Json) -> Json {
 ///|
 /// Declared security schemes.
 fn raw_security_schemes(root : Json) -> Json {
-  let out : Map[String, Json] = Map([])
   let schemes = raw_get(raw_get(root, "components"), "securitySchemes")
-  for name, scheme in raw_object_entries(schemes) {
-    out[name] = Json::object(
+  object_with_sorted_keys(sorted_object_keys(schemes), name => {
+    let scheme = raw_get(schemes, name)
+    Json::object(
       Map([
         ("type", string_or_null(raw_as_string(raw_get(scheme, "type")))),
         ("scheme", string_or_null(raw_as_string(raw_get(scheme, "scheme")))),
@@ -97,8 +151,7 @@ fn raw_security_schemes(root : Json) -> Json {
         ("name", string_or_null(raw_as_string(raw_get(scheme, "name")))),
       ]),
     )
-  }
-  Json::object(out)
+  })
 }
 
 ///|
@@ -137,10 +190,14 @@ fn raw_operation_security(
 
 ///|
 fn schema_to_json(schema : @openapi.Schema) -> Json {
-  let properties : Map[String, Json] = Map([])
-  for name, child in schema.properties {
-    properties[name] = schema_to_json(child)
+  let property_names : Array[String] = []
+  for name, _child in schema.properties {
+    property_names.push(name)
   }
+  // Keys come from the same map, so the indexed read cannot miss.
+  let properties = object_with_sorted_keys(sort_keys(property_names), name => {
+    schema_to_json(schema.properties[name])
+  })
   let required : Array[Json] = []
   for name in schema.required {
     required.push(Json::string(name))
@@ -156,7 +213,7 @@ fn schema_to_json(schema : @openapi.Schema) -> Json {
       ("format", string_or_null(schema.format)),
       ("nullable", Json::boolean(schema.nullable)),
       ("required", Json::array(required)),
-      ("properties", Json::object(properties)),
+      ("properties", properties),
       ("items", items),
       ("enum", Json::array(schema.enum_values.copy())),
       ("additionalProperties", Json::boolean(schema.additional_properties)),
@@ -310,10 +367,14 @@ fn main raise {
           ),
         )
       }
-      let schemas : Map[String, Json] = Map([])
-      for name, schema in document.components.schemas {
-        schemas[name] = schema_to_json(schema)
+      let schema_names : Array[String] = []
+      for name, _schema in document.components.schemas {
+        schema_names.push(name)
       }
+      // Keys come from the same map, so the indexed read cannot miss.
+      let schemas = object_with_sorted_keys(sort_keys(schema_names), name => {
+        schema_to_json(document.components.schemas[name])
+      })
       let normalized = Json::object(
         Map([
           ("frontendModelVersion", Json::number(1.0)),
@@ -323,7 +384,7 @@ fn main raise {
           ("securitySchemes", raw_security_schemes(raw)),
           ("security", Json::array(raw_security_alternatives(raw))),
           ("operations", Json::array(operations)),
-          ("schemas", Json::object(schemas)),
+          ("schemas", schemas),
           ("issues", raw_unsupported_issues(raw)),
           ("ignored", raw_ignored_issues(raw)),
         ]),

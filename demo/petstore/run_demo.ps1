@@ -176,7 +176,9 @@ $driverSource = Join-Path $demoDir 'integration'
 $driverTarget = Join-Path $generated 'integration'
 Copy-Item -LiteralPath $driverSource -Destination $driverTarget -Recurse -Force
 
-$server = Start-Process -FilePath 'python' -ArgumentList @(
+$serverArgs = @{
+    FilePath = 'python'
+    ArgumentList = @(
     (Join-Path $demoDir 'fixture_server.py'),
     '--port', "$Port",
     '--token', $Token,
@@ -184,9 +186,15 @@ $server = Start-Process -FilePath 'python' -ArgumentList @(
     '--basic-password', $BasicPassword,
     '--api-key', $ApiKey,
     '--capture', $capture
-) -PassThru -WindowStyle Hidden `
-  -RedirectStandardOutput (Join-Path $logDir 'server_stdout.log') `
-  -RedirectStandardError (Join-Path $logDir 'server_stderr.log')
+    )
+    PassThru = $true
+    RedirectStandardOutput = (Join-Path $logDir 'server_stdout.log')
+    RedirectStandardError = (Join-Path $logDir 'server_stderr.log')
+}
+if ($IsWindows) {
+    $serverArgs['WindowStyle'] = 'Hidden'
+}
+$server = Start-Process @serverArgs
 
 $driverExit = 1
 $driverOutput = ''

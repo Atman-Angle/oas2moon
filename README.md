@@ -127,7 +127,8 @@ Generated operations never import the HTTP library: they call
 ## Status
 
 **Stage: V1 verified for the Petstore profile.** The full pipeline is
-implemented and exercised end to end on Windows.
+implemented and exercised end to end locally on Windows and on hosted
+Ubuntu/Windows runners through `.github/workflows/cross-platform-ci.yml`.
 
 | Task | Scope | Status |
 |---|---|---|
@@ -144,8 +145,8 @@ implemented and exercised end to end on Windows.
 | T10 | CLI `generate` | ✅ COMPLETE |
 | T11 | Petstore end-to-end demo | ✅ COMPLETE |
 | T12 | Real-world corpus & metrics | ⬜ NOT STARTED |
-| T13 | Determinism hardening (corpus-wide) | ⬜ NOT STARTED |
-| T14 | Cross-platform CI | 🔄 IN PROGRESS |
+| T13 | Determinism hardening (corpus-wide) | ✅ COMPLETE |
+| T14 | Cross-platform CI | ✅ COMPLETE |
 | T15 | Release documentation | ⬜ NOT STARTED |
 
 ### What works today
@@ -175,7 +176,7 @@ The claim above is backed by the demo, not by inspection:
 
 ```pwsh
 pwsh -NoProfile -File demo/petstore/run_demo.ps1     # 11/11 checks, exit 0
-python -m pytest tests -q                            # 31 passed (2 new scratch-dir tests)
+python -m pytest tests -q                            # 59 passed
 ```
 
 The demo generates through the real CLI, compiles the generated package, runs
@@ -184,14 +185,31 @@ server that validates CRUD, all four auth schemes, and the 404/401/configuration
 error paths on the wire. Logs and the raw capture land in
 `demo/petstore/_out/`.
 
+### Platform verification
+
+`.github/workflows/cross-platform-ci.yml` runs the same verification gates on
+`ubuntu-latest` and `windows-latest`:
+
+- MoonBit toolchain installation and version check;
+- frontend adapter, core authority and codegen emitter `moon fmt` followed by
+  `moon fmt --check` and `moon check --target native`;
+- core MoonBit tests with `moon test --target native`;
+- deterministic regeneration via `tests/test_t13_determinism.py`;
+- full generator and fixture tests with `python -m pytest tests -q`;
+- Petstore HTTP integration demo, including generated package `moon fmt`,
+  `moon check --target native --deny-warn`, `moon test --target native
+  --deny-warn`, real local HTTP requests and byte-identical regeneration.
+
+Windows uses PowerShell steps and the MSVC native toolchain. Ubuntu uses the
+MoonBit Unix installer and the runner C compiler. If either platform cannot
+install or run the MoonBit native toolchain, the workflow fails instead of
+recording an unverified compile claim. The hosted run for commit `040f488`
+passed both jobs: <https://github.com/Atman-Angle/oas2moon/actions/runs/35177945624>.
+
 ### What is not yet implemented
 
 - **Real-world corpus**: only the Petstore fixture is validated; GitHub/OpenAI
   subsets (T12) are not.
-- **Corpus-wide determinism**: the demo proves determinism for one spec; T13
-  has not extended it to the corpus or to diagnostics ordering.
-- **Cross-platform CI**: `.github/workflows/demo-windows.yml` runs the demo on
-  Windows runners but has not yet executed on GitHub; there is no Linux job yet.
 - **Response enums and `UnsupportedMediaType`** are modelled in the IR but have
   no end-to-end demo coverage.
 - **Streaming/binary** responses, multipart, XML, OAuth flows, and
