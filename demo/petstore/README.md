@@ -156,6 +156,7 @@ wrong-token probe, which exists to prove a rejected credential becomes
 - The fixture server binds to loopback; it is not a general mock server.
 - The generated package targets `native` only, matching
   `src/runtime_moonbit/moon.pkg`.
-- CI wiring (`.github/workflows/demo-windows.yml`) has been validated as YAML
-  and mirrors a locally passing run, but has not yet executed on a GitHub
-  runner.
+- Hosted CI is `.github/workflows/cross-platform-ci.yml`. The accessible run
+  for commit `040f488` passed `Verify (Ubuntu)` and `Verify (Windows)`:
+  https://github.com/Atman-Angle/oas2moon/actions/runs/35177945624. It verifies
+  this checked fixture profile, not every OpenAPI document.

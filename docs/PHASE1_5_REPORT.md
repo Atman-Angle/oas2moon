@@ -1,5 +1,8 @@
 # Phase 1.5 Report — MoonBit Core Authority
 
+> **Historical report.** It preserves phase evidence only; see
+> `docs/ACCEPTANCE.md` for current verification.
+
 Date: 2026-09-13
 Verdict: GO
 

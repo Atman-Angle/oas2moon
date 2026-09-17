@@ -36,8 +36,9 @@ Legend: **FROZEN** = documented contract; **SPIKE** = must be verified before im
 
 - T12 has not run the generator across a real-world corpus or measured
   supported/rejected operation rates.
-- T14 has a Windows workflow file, but it has not yet run on GitHub and there is
-  no Linux job.
+- T14 hosted evidence is available for both jobs: commit `040f488`,
+  `cross-platform-ci` run `35177945624` completed successfully on Ubuntu and
+  Windows. This historical run is not a substitute for a release-PR run.
 - Response enums and `UnsupportedMediaType` are modeled but lack an end-to-end
   demo case.
 

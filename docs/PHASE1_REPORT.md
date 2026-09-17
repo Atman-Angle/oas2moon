@@ -1,5 +1,8 @@
 # Phase 1 Report — Frontend + Canonical Client IR
 
+> **Historical report.** Dates, commands, and paths here describe a completed
+> phase and are not current release evidence; see `docs/ACCEPTANCE.md`.
+
 Date: 2026-09-13
 Status: **COMPLETE**
 Phase 2: **not started**

@@ -1,5 +1,8 @@
 # Phase 2.5 Report — Python Authority Cleanup
 
+> **Historical repository-cleanup report.** Its inventory is retained for
+> provenance; current hygiene decisions are in `docs/REPOSITORY_HYGIENE.md`.
+
 **Date:** 2026-09-13
 **Verdict:** GO
 
