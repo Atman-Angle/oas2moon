@@ -7,6 +7,7 @@
 - Added release acceptance, third-party notices, five-minute demo instructions, and repository-hygiene/migration documentation.
 - Removed two unreferenced broken Python editing helpers and three obsolete spike runners that invoked a deleted generator.
 - Kept the remaining `spike/` sources as clearly labelled historical experiments.
+- Serialized Petstore fixture capture writes and persist them before responses so repeated CI runs cannot observe stale or truncated wire evidence.
 
 ## Hosted evidence referenced by this release
 

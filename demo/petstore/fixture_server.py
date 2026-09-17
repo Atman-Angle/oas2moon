@@ -83,6 +83,10 @@ class PetstoreHandler(BaseHTTPRequestHandler):
         return self.rfile.read(int(length)).decode("utf-8")
 
     def _respond(self, status: int, payload: dict | None) -> None:
+        # Persist the completed request state before releasing the response.
+        # Otherwise the client can finish and the demo can stop this process
+        # while the final capture write is still pending.
+        self._write_capture()
         body = b"" if payload is None else json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         if body:
@@ -157,11 +161,12 @@ class PetstoreHandler(BaseHTTPRequestHandler):
         except Exception as exc:  # pragma: no cover - defensive
             _fail("handler crash for %s %s: %r" % (method, self.path, exc))
             self._respond(500, {"error": "fixture crash"})
-        finally:
-            self._write_capture()
 
     def _write_capture(self) -> None:
         target = self.server.capture_path  # type: ignore[attr-defined]
+        # Serialize the complete write. Concurrent handlers share one temporary
+        # path, so taking only a state snapshot under the lock can let a delayed
+        # older snapshot overwrite a newer complete capture.
         with STATE_LOCK:
             snapshot = {
                 "requests": list(STATE["requests"]),
@@ -169,11 +174,11 @@ class PetstoreHandler(BaseHTTPRequestHandler):
                 "checks": list(STATE["checks"]),
                 "rejections": list(STATE["rejections"]),
             }
-        tmp = target + ".tmp"
-        with open(tmp, "w", encoding="utf-8", newline="\n") as handle:
-            json.dump(snapshot, handle, ensure_ascii=False, indent=2, sort_keys=True)
-            handle.write("\n")
-        os.replace(tmp, target)
+            tmp = target + ".tmp"
+            with open(tmp, "w", encoding="utf-8", newline="\n") as handle:
+                json.dump(snapshot, handle, ensure_ascii=False, indent=2, sort_keys=True)
+                handle.write("\n")
+            os.replace(tmp, target)
 
     # --------------------------------------------------------------- handlers
     def _handle_get(self, parsed, body) -> None:
