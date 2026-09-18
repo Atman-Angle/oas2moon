@@ -487,9 +487,9 @@ T13 → T12 → T14 → T15
 | T09 | 鉴权 | DONE | T11 在真实 server 上验证 bearer/basic/apiKey header/apiKey query；已在 `main` |
 | T10 | CLI | DONE | `tests/test_t10_cli.py`（含并发 scratch-dir 回归测试）；`demo/petstore/run_demo.ps1` 走真实 CLI；已在 `main` |
 | T11 | E2E Demo | DONE | `pwsh -NoProfile -File demo/petstore/run_demo.ps1`；本地结果必须以当前运行输出为准 |
-| T12 | Corpus | DONE (candidate) | `corpus/sources.json`、`tools/corpus_metrics.py`、`docs/CORPUS_REPORT.md`、`tests/test_t12_corpus_metrics.py`（5 项）；real-world `12/12` operations supported，`compile_pass=5/5`；分支 `codex/t12-corpus-metrics`，待 PR 合入与 PR CI |
+| T12 | Corpus | DONE | `corpus/sources.json`、`tools/corpus_metrics.py`、`docs/CORPUS_REPORT.md`、`tests/test_t12_corpus_metrics.py`（5 项）；real-world `12/12` operations supported，`compile_pass=5/5`；已通过 [PR #3](https://github.com/Atman-Angle/oas2moon/pull/3) 合入 `main`，post-merge CI `35298853128` 通过 |
 | T13 | Determinism | DONE | `tests/test_t13_determinism.py`（37 项，含 pinned OAI Petstore 3.0）：语料双生成字节一致、spec/normalized model 键序反转不变、IR 顺序不变、诊断有序、无时间戳/随机 ID/绝对路径；CI 已加 determinism gate；分支 `feat/t13-determinism-hardening` |
-| T14 | CI | DONE | `cross-platform-ci` run `35177945624`：Ubuntu/Windows 均 success（commit `040f488`） |
+| T14 | CI | DONE | `cross-platform-ci` run `35298853128`：Ubuntu/Windows 均 success（`main` commit `11acf9e`） |
 | T15 | Release | DONE | README、支持矩阵、验收/依赖材料、答辩脚本与仓库卫生记录 |
 
 ### 6.1 T08 结论与分支收尾
@@ -509,9 +509,10 @@ wire 值（例如 `"PetStatus::Available"`）。这违反了 V1 的 local `$ref`
 `"$ref": "#/components/schemas/PetStatus"`，T11 demo 也持续验证 local `$ref`
 可生成并编译。
 
-T12 corpus/metrics 已在 `codex/t12-corpus-metrics` 上通过本地验证，但仍需 PR review、
-PR 上的 hosted Ubuntu/Windows 运行和合入 `main` 才能视为完成交付。T14 的历史
-hosted 记录和 T15 发布材料均已存在；在此之前不能把整个项目宣告为正式完成。
+T12 corpus/metrics 已通过 PR #3 合入 `main`，并且 post-merge hosted Ubuntu/Windows
+运行通过。T14/T15 的发布门禁和材料已闭环，因此 bounded V1 的 Definition of Done
+已满足。该结论不等于完整 OpenAPI 3.0、完整 GitHub/OpenAI 或任意文档支持；有限验证项
+仍以 `docs/SUPPORTED_OPENAPI.md` 为准。
 
 ## 7. 风险与升级规则
 

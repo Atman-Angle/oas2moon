@@ -45,11 +45,12 @@ Legend: **FROZEN** = documented contract; **SPIKE** = must be verified before im
 - Scope honesty: the report and README state that these are bounded corpus
   measurements, not full GitHub/OpenAI or arbitrary-document support claims.
 
-## Known unresolved evidence gaps
+## Post-merge verification and remaining evidence gaps
 
-- T14 hosted evidence is available for both jobs: commit `040f488`,
-  `cross-platform-ci` run `35177945624` completed successfully on Ubuntu and
-  Windows. This historical run is not a substitute for a release-PR run.
+- T12 is merged into `main` at commit `11acf9e` through PR #3. The post-merge
+  `cross-platform-ci` run `35298853128` completed successfully on Ubuntu and
+  Windows, including 8/8 core authority tests, 37 determinism tests, 68 Python
+  tests, and the real-HTTP Petstore demo (`ALL PASS`, 11 checks; 16 e2e checks).
 - Response enums and `UnsupportedMediaType` are modeled but lack an end-to-end
   demo case.
 

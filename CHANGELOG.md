@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — T15 release material
+## 0.1.0 — bounded V1 (2026-09-18)
 
 - Rewrote the README around the MoonBit-first authority boundary, runnable quick start, real HTTP demo, support limits, and hosted CI evidence.
 - Classified support claims by evidence and recorded known gaps instead of future plans.
@@ -13,6 +13,7 @@
 
 ## Hosted evidence referenced by this release
 
-- `cross-platform-ci`, commit `040f488`, [run 35177945624](https://github.com/Atman-Angle/oas2moon/actions/runs/35177945624): completed successfully on Ubuntu and Windows. This is a recorded historical run, not a substitute for running CI on a release PR.
+- T12 corpus/metrics merged through [PR #3](https://github.com/Atman-Angle/oas2moon/pull/3) at merge commit `11acf9e`.
+- `cross-platform-ci`, commit `11acf9e`, [run 35298853128](https://github.com/Atman-Angle/oas2moon/actions/runs/35298853128): completed successfully on Ubuntu and Windows after the merge to `main`.
 
-No version number, performance metric, or compatibility percentage is assigned by this file.
+This entry records package version 0.1.0. It does not imply complete OpenAPI 3.0 compatibility, full GitHub/OpenAI support, or a compatibility percentage.
