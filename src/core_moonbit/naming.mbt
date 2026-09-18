@@ -14,8 +14,7 @@ let reserved : Map[String, Bool] = {
     "package", "priv", "pub", "pure", "raise", "readonly", "ref", "return", "self",
     "static", "struct", "suberror", "test", "trait", "true", "try", "type", "var",
     "while", "with", "Error", "all", "client", "config", "from_json", "json", "new",
-    "open",
-    "to_json", "to_wire",
+    "open", "to_json", "to_wire",
   ]
   for kw in words {
     m[kw] = true

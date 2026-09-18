@@ -8,7 +8,7 @@ repository = "https://github.com/Atman-Angle/oas2moon"
 
 license = "MIT"
 
-keywords = ["openapi", "codegen", "moonbit", "sdk"]
+keywords = [ "openapi", "codegen", "moonbit", "sdk" ]
 
 description = "MoonBit SDK emitter for the oas2moon OpenAPI client generator."
 

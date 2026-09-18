@@ -8,7 +8,7 @@ repository = "https://github.com/Atman-Angle/oas2moon"
 
 license = "MIT"
 
-keywords = ["openapi", "ir", "validation", "codegen"]
+keywords = [ "openapi", "ir", "validation", "codegen" ]
 
 description = "Canonical Client IR, validation, naming, and type mapping for oas2moon."
 

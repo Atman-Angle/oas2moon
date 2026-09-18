@@ -8,7 +8,7 @@ repository = "https://github.com/Atman-Angle/oas2moon"
 
 license = "MIT"
 
-keywords = ["openapi", "http", "client", "runtime"]
+keywords = [ "openapi", "http", "client", "runtime" ]
 
 description = "Runtime request, response, encoding, auth, and transport boundary for oas2moon clients."
 
