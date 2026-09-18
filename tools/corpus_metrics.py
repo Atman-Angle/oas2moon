@@ -49,7 +49,7 @@ PATH_ITEM_NON_OPERATIONS = frozenset(
     {"parameters", "summary", "description", "servers", "$ref"}
 )
 
-#: Exit code the CLI uses for "unsupported OpenAPI contract" (docs/DECISIONS.md 7).
+#: Exit code the CLI uses for "unsupported OpenAPI contract".
 EXIT_UNSUPPORTED = 4
 
 
@@ -330,7 +330,7 @@ def render_report(summary: dict[str, Any], records: list[dict[str, Any]]) -> str
         "Regenerate with:",
         "",
         "```pwsh",
-        "python tools/corpus_metrics.py --json-out tests/_build/corpus-metrics/summary.json --report-out docs/CORPUS_REPORT.md",
+        "python tools/corpus_metrics.py --json-out tests/_build/corpus-metrics/summary.json --report-out tests/_build/corpus-metrics/report.md",
         "```",
         "",
         "Metric definitions and granularity caveats: the module docstring in",

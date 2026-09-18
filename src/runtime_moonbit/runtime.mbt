@@ -5,7 +5,7 @@
 /// never discarded.  The `Http` variant additionally carries status, headers,
 /// and raw body for programmatic inspection by callers.
 ///
-/// Variant map (per docs/DECISIONS.md §2):
+/// Variant map:
 /// - Transport      — DNS, connection, timeout, TLS, or adapter failure;
 /// - Http           — non-2xx response (status, headers, raw body);
 /// - Decode         — response did not match the declared representation;

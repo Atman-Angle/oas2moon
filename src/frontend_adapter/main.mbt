@@ -77,7 +77,7 @@ fn raw_object_entries(json : Json) -> Map[String, Json] {
 /// forwards source order: every unordered map is re-emitted through this
 /// helper with sorted keys. The runtime `Map` preserves insertion order, so
 /// without this the parser would leak document order into the normalized
-/// model (see docs/DECISIONS.md §10).
+/// model.
 fn object_with_sorted_keys(
   keys : Array[String],
   lookup : (String) -> Json,

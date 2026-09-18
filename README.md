@@ -28,7 +28,7 @@ Production semantics are MoonBit-first:
 | Runtime transport | `src/runtime_moonbit/` (MoonBit) | Requests, auth, response/error handling, real HTTP |
 | CLI and test support | Python / PowerShell | Orchestrate stages, fixture server, test harness and demo support only |
 
-Python does not parse OpenAPI, decide names/types, construct IR, or emit SDK source. `docs/ARCHITECTURE.md` explains the boundary in more detail.
+Python does not parse OpenAPI, decide names/types, construct IR, or emit SDK source. The architecture table above is the public boundary.
 
 ## Installation
 
@@ -75,14 +75,14 @@ The following are evidence claims, not broad compatibility promises:
 | Generated package formatting, native compilation and tests | Demo steps 3–5; CI workflow |
 | Real HTTP request shape, typed decode, 204, response enums, unexpected response media type, four auth modes, HTTP/configuration errors | Demo steps 6–11 with `demo/petstore/fixture_server.py` |
 | Deterministic output | Demo step 12 and `tests/test_t13_determinism.py` |
-| Bounded real-world corpus generation and compilation | `python tools/corpus_metrics.py --json-out tests/_build/corpus-metrics/summary.json --report-out docs/CORPUS_REPORT.md`; 5/5 real-world specs compiled and 12/12 operations were supported |
+| Bounded real-world corpus generation and compilation | `python tools/corpus_metrics.py --json-out tests/_build/corpus-metrics/summary.json`; 5/5 real-world specs compiled and 12/12 operations were supported |
 | Hosted Ubuntu and Windows verification | [cross-platform-ci run 35302482785](https://github.com/Atman-Angle/oas2moon/actions/runs/35302482785), commit `686b91b`: both jobs `success` |
 
 The CI workflow is [`.github/workflows/cross-platform-ci.yml`](.github/workflows/cross-platform-ci.yml). It runs MoonBit package checks, determinism tests, the Python suite, and the real-HTTP demo on `ubuntu-latest` and `windows-latest`. It does not establish compatibility beyond the checked fixture set.
 
 ## Supported profile and limits
 
-The evidence classification and exact semantics are in [`docs/SUPPORTED_OPENAPI.md`](docs/SUPPORTED_OPENAPI.md). In short, the tested profile includes OpenAPI 3.0.0–3.0.3 JSON/common YAML, local refs, common models, GET/POST/PUT/PATCH/DELETE, JSON bodies/responses, common path/query/header serialization, and Bearer/Basic/API-key auth.
+The tested profile includes OpenAPI 3.0.0–3.0.3 JSON/common YAML, local refs, common models, GET/POST/PUT/PATCH/DELETE, JSON bodies/responses, common path/query/header serialization, and Bearer/Basic/API-key auth.
 
 V1 does not support OpenAPI 3.1, external/network `$ref`, `oneOf`, `anyOf`, `discriminator`, multipart, XML, callbacks/webhooks, OAuth authorization flows, or arbitrary parameter serialization styles. Unsupported semantics must produce a stable diagnostic; a `Json` fallback is permitted only where documented wire behaviour stays correct.
 
@@ -90,10 +90,6 @@ Known limits: the corpus is deliberately bounded to one full archived OAI Petsto
 
 ## Release material
 
-- [Support matrix](docs/SUPPORTED_OPENAPI.md)
-- [Acceptance and release evidence](docs/ACCEPTANCE.md)
-- [Measured corpus report](docs/CORPUS_REPORT.md)
-- [Five-minute defence demo](docs/DEMO_SCRIPT.md)
 - [Third-party notices](THIRD_PARTY_NOTICES.md)
 - [Change log](CHANGELOG.md)
 

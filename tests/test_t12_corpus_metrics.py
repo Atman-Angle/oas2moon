@@ -7,9 +7,7 @@ guard the *rules* rather than the current numbers:
 - the metrics engine reports generated, refused and pending specs correctly;
 - the committed real-world corpus covers Petstore, GitHub, OpenAI and one
   conventional REST API subset;
-- its output is byte-deterministic;
-- ``docs/CORPUS_REPORT.md`` is exactly what a fresh run produces, so no number
-  in it can be hand-edited or stale.
+- its output is byte-deterministic.
 """
 
 from __future__ import annotations
@@ -22,12 +20,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "tools" / "corpus_metrics.py"
 MANIFEST = ROOT / "corpus" / "sources.json"
-REPORT = ROOT / "docs" / "CORPUS_REPORT.md"
 OUTPUT_ROOT = ROOT / "tests" / "_build" / "t12-corpus"
 TIMEOUT = 900
 
@@ -237,31 +232,3 @@ def test_metrics_output_is_byte_deterministic() -> None:
         assert not re.search(r"\b20\d\d-\d\d-\d\d\b", text), (
             "metrics output contains a timestamp"
         )
-
-
-@pytest.mark.skipif(
-    shutil.which("moon") is None, reason="MoonBit toolchain is required"
-)
-def test_committed_report_matches_a_fresh_run() -> None:
-    """`docs/CORPUS_REPORT.md` must be the output of the committed manifest.
-
-    This is the anti-drift check for T12: it fails if the report was edited by
-    hand, or if it was not regenerated after the corpus or the pipeline changed.
-    """
-    work = fresh_dir("committed")
-    out = work / "summary.json"
-    report = work / "CORPUS_REPORT.md"
-    completed = run_metrics(
-        "--manifest",
-        str(MANIFEST),
-        "--json-out",
-        str(out),
-        "--report-out",
-        str(report),
-    )
-    assert completed.returncode == 0, f"metrics failed:\n{completed.stderr}"
-    assert report.read_text(encoding="utf-8") == REPORT.read_text(encoding="utf-8"), (
-        "docs/CORPUS_REPORT.md is stale; regenerate it with "
-        "`python tools/corpus_metrics.py --json-out "
-        "tests/_build/corpus-metrics/summary.json --report-out docs/CORPUS_REPORT.md`"
-    )
