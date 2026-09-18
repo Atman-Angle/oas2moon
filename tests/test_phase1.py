@@ -80,6 +80,7 @@ def test_naming_collision_and_reserved_word_are_deterministic():
     assert naming.unique(naming.snake("x-y"), taken) == "x_y"
     assert naming.unique(naming.snake("x_y"), taken) == "x_y_2"
     assert naming.pascal("123 pet") == "V123Pet"
+    assert naming.pascal("error") == "ErrorValue"
 
 
 def test_diagnostic_contract_keys(tmp_path):

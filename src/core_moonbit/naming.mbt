@@ -4,7 +4,7 @@
 /// Converts OpenAPI identifiers into stable MoonBit identifiers.
 
 ///|
-/// MoonBit reserved keywords plus generated helper names.
+/// MoonBit reserved keywords, reserved type names, and generated helper names.
 let reserved : Map[String, Bool] = {
   let m : Map[String, Bool] = Map([])
   let words = [
@@ -13,7 +13,8 @@ let reserved : Map[String, Bool] = {
     "is", "let", "loop", "match", "mut", "noraise", "not", "null", "op", "or", "override",
     "package", "priv", "pub", "pure", "raise", "readonly", "ref", "return", "self",
     "static", "struct", "suberror", "test", "trait", "true", "try", "type", "var",
-    "while", "with", "all", "client", "config", "from_json", "json", "new", "open",
+    "while", "with", "Error", "all", "client", "config", "from_json", "json", "new",
+    "open",
     "to_json", "to_wire",
   ]
   for kw in words {

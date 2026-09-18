@@ -26,6 +26,7 @@ This is a bounded OpenAPI 3.0.x profile, not a claim of full OpenAPI support. â€
 | Multiple distinct success schemas / operation response enum | Represented and unit-tested by response-strategy fixtures; no real-HTTP demo case. |
 | `application/*+json` | Only accept it where the current normalizer classifies it as safe JSON; no broad media-type claim. |
 | HEAD transport mapping | Runtime maps HEAD, but the public supported operation profile and local-HTTP demo do not claim HEAD. |
+| Bounded real-world corpus | Five local real-world specs compiled: official OAI Petstore 3.0 plus project Petstore and curated GitHub/OpenAI/JSONPlaceholder subsets. The measured 12/12 operation total is not a full-document support rate. |
 
 ## Explicitly unsupported
 
@@ -42,7 +43,7 @@ For unsupported semantics, generation must stop with a deterministic diagnostic;
 
 ## Not verified or not promised
 
-- Real-world API corpus acceptance rates, operation counts, and compatibility metrics (T12 has not been delivered).
+- Full-document or network-fetched API acceptance rates; the committed corpus uses small curated subsets and one full 3-operation OAI sample.
 - Complex server-variable resolution.
 - Every legal OpenAPI 3.0 serialization/default combination.
 - Non-JSON response decoding, response enums, and `UnsupportedMediaType` over a real HTTP fixture.
