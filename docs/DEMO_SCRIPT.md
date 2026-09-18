@@ -54,7 +54,7 @@ Point to the demo's final “byte-identical regeneration” result and its two g
 
 ## 4:00–4:30 — hosted CI
 
-Open [cross-platform-ci run 35298853128](https://github.com/Atman-Angle/oas2moon/actions/runs/35298853128). Its API-accessible result is `success` for `Verify (Ubuntu)` and `Verify (Windows)` on `main` commit `11acf9e`. The workflow runs the same test and demo gates. If the link is unavailable during a presentation, say so and show the workflow file; do not substitute a guessed result.
+Open [cross-platform-ci run 35302482785](https://github.com/Atman-Angle/oas2moon/actions/runs/35302482785). Its API-accessible result is `success` for `Verify (Ubuntu)` and `Verify (Windows)` on `main` commit `686b91b`. The workflow runs the same test and demo gates. If the link is unavailable during a presentation, say so and show the workflow file; do not substitute a guessed result.
 
 ## 4:30–5:00 — limits and next steps
 

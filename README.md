@@ -76,7 +76,7 @@ The following are evidence claims, not broad compatibility promises:
 | Real HTTP request shape, typed decode, 204, response enums, unexpected response media type, four auth modes, HTTP/configuration errors | Demo steps 6–11 with `demo/petstore/fixture_server.py` |
 | Deterministic output | Demo step 12 and `tests/test_t13_determinism.py` |
 | Bounded real-world corpus generation and compilation | `python tools/corpus_metrics.py --json-out tests/_build/corpus-metrics/summary.json --report-out docs/CORPUS_REPORT.md`; 5/5 real-world specs compiled and 12/12 operations were supported |
-| Hosted Ubuntu and Windows verification | [cross-platform-ci run 35298853128](https://github.com/Atman-Angle/oas2moon/actions/runs/35298853128), commit `11acf9e`: both jobs `success` |
+| Hosted Ubuntu and Windows verification | [cross-platform-ci run 35302482785](https://github.com/Atman-Angle/oas2moon/actions/runs/35302482785), commit `686b91b`: both jobs `success` |
 
 The CI workflow is [`.github/workflows/cross-platform-ci.yml`](.github/workflows/cross-platform-ci.yml). It runs MoonBit package checks, determinism tests, the Python suite, and the real-HTTP demo on `ubuntu-latest` and `windows-latest`. It does not establish compatibility beyond the checked fixture set.
 

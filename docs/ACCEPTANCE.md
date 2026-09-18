@@ -2,7 +2,7 @@
 
 ## Release state
 
-The bounded V1 development scope is complete and passed its post-merge release gate on `main` commit `11acf9e` (`cross-platform-ci` run `35298853128`; Ubuntu and Windows both succeeded). "Complete" here means the documented profile in this file and [SUPPORTED_OPENAPI.md](SUPPORTED_OPENAPI.md), not complete OpenAPI 3.0 support, full GitHub/OpenAI compatibility, or arbitrary-document acceptance.
+The bounded V1 development scope is complete and passed its post-merge release gate on `main` commit `686b91b` (`cross-platform-ci` run `35302482785`; Ubuntu and Windows both succeeded). "Complete" here means the documented profile in this file and [SUPPORTED_OPENAPI.md](SUPPORTED_OPENAPI.md), not complete OpenAPI 3.0 support, full GitHub/OpenAI compatibility, or arbitrary-document acceptance.
 
 ## Current acceptance gates
 
@@ -12,7 +12,7 @@ The bounded V1 development scope is complete and passed its post-merge release g
 | Generated package format/check/test | `demo/petstore/run_demo.ps1`, steps 3–5 | Required; native target |
 | Real local HTTP integration | Demo steps 6–11; strict Python fixture server, generated MoonBit client | Required |
 | Deterministic regeneration | `tests/test_t13_determinism.py`; demo step 12 byte hashes | Required |
-| Ubuntu and Windows hosted verification | [run 35298853128](https://github.com/Atman-Angle/oas2moon/actions/runs/35298853128), commit `11acf9e`: both jobs succeeded | Current post-merge release evidence |
+| Ubuntu and Windows hosted verification | [run 35302482785](https://github.com/Atman-Angle/oas2moon/actions/runs/35302482785), commit `686b91b`: both jobs succeeded | Current post-merge release evidence |
 | Bounded real-world corpus | `python tools/corpus_metrics.py --json-out tests/_build/corpus-metrics/summary.json --report-out docs/CORPUS_REPORT.md`; see [CORPUS_REPORT.md](CORPUS_REPORT.md) | 5/5 real-world specs compiled; 12/12 real-world operations supported; one expected control rejection |
 | Unsupported-feature diagnostics | negative `oneOf` fixtures and phase/CLI tests | Required; no silent fallback |
 

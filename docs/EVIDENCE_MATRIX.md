@@ -47,10 +47,12 @@ Legend: **FROZEN** = documented contract; **SPIKE** = must be verified before im
 
 ## Post-merge verification and remaining evidence gaps
 
-- T12 is merged into `main` at commit `11acf9e` through PR #3. The post-merge
-  `cross-platform-ci` run `35298853128` completed successfully on Ubuntu and
-  Windows, including 8/8 core authority tests, 37 determinism tests, 68 Python
-  tests, and the real-HTTP Petstore demo (`ALL PASS`, 11 summary checks; 19 e2e checks; 12 wire requests).
+- The public release-hardening changes merged through PR #6 at `main` commit
+  `686b91b`. Post-merge `cross-platform-ci` run `35302482785` completed
+  successfully on Ubuntu and Windows, including 8/8 core authority tests, 33
+  runtime tests, 37 determinism tests, 56 public Python tests, and the
+  real-HTTP Petstore demo (`ALL PASS`, 11 summary checks; 19 e2e checks; 12
+  wire requests).
 - The Petstore demo now covers response enums through distinct 200/201
   schemas and rejects a declared-JSON response delivered as `text/plain` with
   `SdkError.Unsupported`.
