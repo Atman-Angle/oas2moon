@@ -46,7 +46,7 @@ pwsh -NoProfile -File demo/petstore/run_demo.ps1
 Get-Content demo/petstore/_out/server_capture.json -Raw
 ```
 
-The script starts the strict local Python fixture server and drives it with the generated MoonBit client. Its pass/fail checks cover typed GET/POST/DELETE plus 204, bearer/basic/API-key header/API-key query, a rejected credential, non-2xx `SdkError.Http`, and missing-credential `SdkError.Configuration`. It also runs the package `moon fmt`, `moon check`, and `moon test`.
+The script starts the strict local Python fixture server and drives it with the generated MoonBit client. Its pass/fail checks cover typed GET/POST/DELETE plus 204, a response enum for distinct 200/201 schemas, bearer/basic/API-key header/API-key query, a rejected credential, non-2xx `SdkError.Http`, missing-credential `SdkError.Configuration`, and explicit rejection of a declared-JSON response delivered as `text/plain`. It also runs the package `moon fmt`, `moon check`, and `moon test`.
 
 ## 3:30–4:00 — determinism
 
@@ -58,4 +58,4 @@ Open [cross-platform-ci run 35298853128](https://github.com/Atman-Angle/oas2moon
 
 ## 4:30–5:00 — limits and next steps
 
-State the non-goals: no OpenAPI 3.1, external refs, unions/discriminator, multipart/XML, callbacks/webhooks, OAuth authorization flows, or arbitrary parameter styles. Unsupported input must diagnose rather than silently generate incorrect wire behaviour. The next evidence work is a real-world corpus (T12), then reducing Python test/demo support as documented in `REPOSITORY_HYGIENE.md`.
+State the non-goals: no OpenAPI 3.1, external refs, unions/discriminator, multipart/XML, callbacks/webhooks, OAuth authorization flows, or arbitrary parameter styles. Unsupported input must diagnose rather than silently generate incorrect wire behaviour. The bounded corpus remains deliberately limited, and no Mooncakes package is published yet.

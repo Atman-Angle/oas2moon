@@ -7,6 +7,8 @@ printed log.
 
 Endpoints
     GET    /pets/{id}?verbose=true     -> 200 Pet        (bearer, X-Trace required)
+    GET    /pets/{id}/result           -> 200 Pet or 201 CreatedPetResponse
+    GET    /media/mismatch             -> 200 Pet with text/plain Content-Type
     POST   /pets                       -> 201 Pet        (bearer, JSON body)
     DELETE /pets                       -> 204 (no body)  (bearer)
     GET    /auth/bearer                -> 200 AuthEcho   (bearer)
@@ -46,6 +48,16 @@ STATE: dict[str, list] = {
 PET_STATUSES = ("available", "pending", "sold")
 
 
+def _pet_payload(pet_id: int) -> dict:
+    return {
+        "id": pet_id,
+        "name": "Spike",
+        "status": "available",
+        "tags": ["fluffy", "friendly"],
+        "nickname": None,
+    }
+
+
 def _record(entry: dict) -> None:
     with STATE_LOCK:
         STATE["requests"].append(entry)
@@ -82,7 +94,13 @@ class PetstoreHandler(BaseHTTPRequestHandler):
             return ""
         return self.rfile.read(int(length)).decode("utf-8")
 
-    def _respond(self, status: int, payload: dict | None) -> None:
+    def _respond(
+        self,
+        status: int,
+        payload: dict | None,
+        *,
+        content_type: str = "application/json",
+    ) -> None:
         # Persist the completed request state before releasing the response.
         # Otherwise the client can finish and the demo can stop this process
         # while the final capture write is still pending.
@@ -90,7 +108,7 @@ class PetstoreHandler(BaseHTTPRequestHandler):
         body = b"" if payload is None else json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         if body:
-            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         if body:
@@ -204,7 +222,35 @@ class PetstoreHandler(BaseHTTPRequestHandler):
 
         if not self._require_bearer():
             return
+
+        if parsed.path == "/media/mismatch":
+            _check("media.mismatch.path")
+            _check("media.mismatch.content_type")
+            self._respond(200, _pet_payload(42), content_type="text/plain")
+            return
+
         prefix = "/pets/"
+        if parsed.path.startswith(prefix) and parsed.path.endswith("/result"):
+            raw_id = parsed.path[len(prefix) : -len("/result")]
+            try:
+                pet_id = int(raw_id)
+            except ValueError:
+                _fail("result path parameter is not an integer: %r" % raw_id)
+                self._respond(400, {"error": "bad path parameter"})
+                return
+            _check("result.path_parameter")
+            created = parse_qs(parsed.query, keep_blank_values=True).get("created") == ["true"]
+            if created:
+                _check("result.created_status")
+                self._respond(
+                    201,
+                    {"id": pet_id, "created_at": "2026-09-18T00:00:00Z"},
+                )
+            else:
+                _check("result.existing_status")
+                self._respond(200, _pet_payload(pet_id))
+            return
+
         if not parsed.path.startswith(prefix):
             # Deliberate error-path probe from the generated client.
             self._respond(404, {"error": "not found", "path": parsed.path})
@@ -234,16 +280,7 @@ class PetstoreHandler(BaseHTTPRequestHandler):
 
         if body:
             _fail("GET must not carry a body, received %r" % body)
-        self._respond(
-            200,
-            {
-                "id": pet_id,
-                "name": "Spike",
-                "status": "available",
-                "tags": ["fluffy", "friendly"],
-                "nickname": None,
-            },
-        )
+        self._respond(200, _pet_payload(pet_id))
 
     def _handle_post(self, parsed, body) -> None:
         if not self._require_bearer():

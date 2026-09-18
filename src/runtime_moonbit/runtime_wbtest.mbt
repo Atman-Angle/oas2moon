@@ -236,6 +236,42 @@ test "decode_json raises Decode error on type mismatch" {
 }
 
 ///|
+test "decode_json rejects unsupported response media type" {
+  let response = Response::new(
+    200,
+    headers=Map([("Content-Type", "text/plain")]),
+    body="1",
+  )
+  let _ : Int = (decode_json(response, operation_id="get_raw") : Int) catch {
+    Unsupported(op, msg) => {
+      assert_eq(op, "get_raw")
+      let _ = msg.contains("text/plain")
+      0
+    }
+    _ => raise Failure("expected Unsupported")
+  }
+}
+
+///|
+test "decode_json accepts JSON media type parameters and suffixes" {
+  let with_charset = Response::new(
+    200,
+    headers=Map([("Content-Type", "application/json; charset=utf-8")]),
+    body="1",
+  )
+  let parsed : Int = decode_json(with_charset, operation_id="get_one")
+  assert_eq(parsed, 1)
+
+  let problem_json = Response::new(
+    200,
+    headers=Map([("content-type", "application/problem+json")]),
+    body="2",
+  )
+  let parsed_problem : Int = decode_json(problem_json, operation_id="get_two")
+  assert_eq(parsed_problem, 2)
+}
+
+///|
 test "SdkError::to_string is stable and contains no absolute paths" {
   // Http error display
   let http_err = SdkError::http("get_pet", 404, Map([]), "not found")

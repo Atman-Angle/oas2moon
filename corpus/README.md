@@ -64,7 +64,7 @@ Every entry also carries:
 
 ## What the numbers mean
 
-See the T12 section of `docs/DEVELOPMENT_TASKS.md` for the exact definitions of
+See `tools/corpus_metrics.py` for the exact definitions of
 `operations_total`, `operations_supported`, `operations_rejected`,
 `rejection_reasons` and `compile_pass`, including the spec-level granularity
 caveat: V1 refuses a spec, not an operation.

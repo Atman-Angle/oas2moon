@@ -24,7 +24,7 @@ The hosted workflow is [cross-platform-ci.yml](../.github/workflows/cross-platfo
 |---|---|
 | Supported real inputs normalize correctly | Frontend/IR tests plus the committed corpus manifest and generated/compiled corpus report |
 | Generated packages compile | 7/7 generated corpus specs compile; real-world corpus `compile_pass=5/5` |
-| Generated clients send correct HTTP requests | Post-merge Petstore HTTP demo on Ubuntu and Windows: `ALL PASS (11 checks)`, 16 e2e checks per platform |
+| Generated clients send correct HTTP requests | Post-merge Petstore HTTP demo on Ubuntu and Windows: `ALL PASS (11 checks)`, 19 e2e checks and 12 wire requests per platform |
 | Typed decoding works | Same generated-client HTTP demo, including CRUD, typed responses, 204, and structured errors |
 | Unsupported semantics fail explicitly | Expected `oneOf` control rejection with stable diagnostic `unsupported.keyword@#/components/schemas/Choice/oneOf` |
 | Deterministic regeneration passes | 37 determinism tests on Ubuntu and Windows plus byte-hash comparison in the demo |
@@ -44,14 +44,13 @@ git diff --check
 git status --short
 ```
 
-The first three commands establish the current local test, corpus, and demo results. The demo is the acceptance path that proves `moon fmt`, `moon check`, `moon test`, real HTTP calls, auth, response/error handling, and byte-identical regeneration.
+The first three commands establish the current local test, corpus, and demo results. The demo is the acceptance path that proves `moon fmt`, `moon check`, `moon test`, real HTTP calls, response enums, unexpected response media type handling, auth, response/error handling, and byte-identical regeneration.
 
 ## Non-claims and remaining limited-verification items
 
 - Do not record a test count, performance metric, or platform result unless it came from the candidate run or an accessible hosted run.
 - A passing CaptureTransport test alone is insufficient; retain the real local HTTP demo.
 - Corpus evidence is bounded: one full 3-operation archived OAI Petstore sample plus project/curated subsets; it is not a full-document population study.
-- Response enums and `UnsupportedMediaType` lack real-HTTP demo coverage.
 - Any new supported feature needs parse/normalize, codegen, generated-package compilation, and real HTTP evidence when its wire semantics matter.
 
 The detailed support classification is in [SUPPORTED_OPENAPI.md](SUPPORTED_OPENAPI.md).

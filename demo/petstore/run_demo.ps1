@@ -229,7 +229,7 @@ try {
 }
 
 Save-Log 'integration.log' $driverOutput | Out-Null
-Add-Result 'generated client: CRUD, four auth schemes, error paths' ($driverExit -eq 0) $driverOutput
+Add-Result 'generated client: CRUD, response enum, media mismatch, auth and errors' ($driverExit -eq 0) $driverOutput
 foreach ($line in ($driverOutput -split "`n")) {
     if ($line.Trim()) { Write-Host ("    " + $line.TrimEnd()) -ForegroundColor DarkGray }
 }
@@ -248,6 +248,9 @@ if (-not (Test-Path -LiteralPath $capture)) {
 
     $expected = @(
         'GET /pets/42?verbose=true',
+        'GET /pets/42/result?created=false',
+        'GET /pets/42/result?created=true',
+        'GET /media/mismatch',
         'POST /pets',
         'DELETE /pets',
         'GET /auth/bearer',

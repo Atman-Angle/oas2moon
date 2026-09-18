@@ -87,6 +87,22 @@
             "type": "string"
           }
         }
+      },
+      "CreatedPetResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "created_at": {
+            "type": "string"
+          }
+        }
       }
     }
   },
@@ -256,6 +272,79 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AuthEcho"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pets/{id}/result": {
+      "get": {
+        "operationId": "getPetResult",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "created",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "existing pet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pet"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "created pet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedPetResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/media/mismatch": {
+      "get": {
+        "operationId": "getMediaMismatch",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "deliberately wrong response media type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pet"
                 }
               }
             }

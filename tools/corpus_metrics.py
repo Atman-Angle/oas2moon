@@ -9,8 +9,8 @@ Measures, per corpus spec, the numbers T12 has to publish:
 * ``compile_pass``          specs whose package passed ``moon fmt --check``
                             and ``moon check --target native --deny-warn``.
 
-Metric definitions (deliberate — see the T12 section of
-``docs/DEVELOPMENT_TASKS.md``):
+Metric definitions (deliberate — see ``corpus/README.md`` for the
+provenance contract):
 
 * ``operations_total`` is counted from the raw document for JSON specs (an
   independent stdlib-only count) and cross-checked against the number of
@@ -333,8 +333,8 @@ def render_report(summary: dict[str, Any], records: list[dict[str, Any]]) -> str
         "python tools/corpus_metrics.py --json-out tests/_build/corpus-metrics/summary.json --report-out docs/CORPUS_REPORT.md",
         "```",
         "",
-        "Metric definitions and granularity caveats: the T12 section of",
-        "`docs/DEVELOPMENT_TASKS.md`. Corpus layout and provenance rules:",
+        "Metric definitions and granularity caveats: the module docstring in",
+        "`tools/corpus_metrics.py`. Corpus layout and provenance rules:",
         "`corpus/README.md`.",
         "",
         "## Totals",

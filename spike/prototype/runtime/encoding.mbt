@@ -22,8 +22,8 @@ fn hex_digit(value : Int) -> Char {
 
 ///|
 /// Percent-encode one string. The result is built from `Char` values rather
-/// than from a byte buffer: byte-array to string conversion is not UTF-8
-/// preserving on this toolchain, see `SPIKE_REPORT.md`.
+/// than from a byte buffer: byte-array to string conversion was not UTF-8
+/// preserving on the historically tested toolchain.
 fn percent_encode(value : String, space_as_plus : Bool) -> String {
   let out = StringBuilder::new()
   for byte in @utf8.encode(value).iter() {
