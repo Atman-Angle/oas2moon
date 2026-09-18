@@ -32,7 +32,11 @@ Python does not parse OpenAPI, decide names/types, construct IR, or emit SDK sou
 
 ## Installation
 
-The CLI is installed from source. The MoonBit modules are published on Mooncakes:
+The CLI is installed from source. The complete MoonBit suite is available through the umbrella package:
+
+- [Atman-Angle/oas2moon](https://mooncakes.io/docs/Atman-Angle/oas2moon)
+
+Implementation modules are also published independently:
 
 - [Atman-Angle/oas2moon_runtime](https://mooncakes.io/docs/Atman-Angle/oas2moon_runtime)
 - [Atman-Angle/oas2moon_core](https://mooncakes.io/docs/Atman-Angle/oas2moon_core)
