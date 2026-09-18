@@ -18,7 +18,7 @@
 ## Hosted evidence referenced by this release
 
 - T12 corpus/metrics merged through [PR #3](https://github.com/Atman-Angle/oas2moon/pull/3) at merge commit `11acf9e`.
-- Public release-hardening changes merged through [PR #6](https://github.com/Atman-Angle/oas2moon/pull/6) at `main` commit `686b91b`.
-- `cross-platform-ci`, commit `686b91b`, [run 35302482785](https://github.com/Atman-Angle/oas2moon/actions/runs/35302482785): completed successfully on Ubuntu and Windows after the merge to `main`.
+- Public release-hardening changes merged through the release-hardening pull requests.
+- The latest public `main` commit is `5187939dd78d8af2d0707db7bab3de58b10ab1fa`; [cross-platform-ci run 35318618356](https://github.com/Atman-Angle/oas2moon/actions/runs/35318618356) completed successfully on Ubuntu and Windows.
 
 This entry records package version 0.1.0. It does not imply complete OpenAPI 3.0 compatibility, full GitHub/OpenAI support, or a compatibility percentage.

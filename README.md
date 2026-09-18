@@ -85,7 +85,7 @@ The following are evidence claims, not broad compatibility promises:
 | Real HTTP request shape, typed decode, 204, response enums, unexpected response media type, four auth modes, HTTP/configuration errors | Demo steps 6–11 with `demo/petstore/fixture_server.py` |
 | Deterministic output | Demo step 12 and `tests/test_t13_determinism.py` |
 | Bounded real-world corpus generation and compilation | `python tools/corpus_metrics.py --json-out tests/_build/corpus-metrics/summary.json`; 5/5 real-world specs compiled and 12/12 operations were supported |
-| Hosted Ubuntu and Windows verification | [cross-platform-ci run 35302482785](https://github.com/Atman-Angle/oas2moon/actions/runs/35302482785), commit `686b91b`: both jobs `success` |
+| Hosted Ubuntu and Windows verification | [cross-platform-ci run 35318618356](https://github.com/Atman-Angle/oas2moon/actions/runs/35318618356), commit `5187939dd78d8af2d0707db7bab3de58b10ab1fa`: both jobs `success` |
 
 The CI workflow is [`.github/workflows/cross-platform-ci.yml`](.github/workflows/cross-platform-ci.yml). It runs MoonBit package checks, determinism tests, the Python suite, and the real-HTTP demo on `ubuntu-latest` and `windows-latest`. It does not establish compatibility beyond the checked fixture set.
 
@@ -101,6 +101,12 @@ Known limits: the corpus is deliberately bounded to one full archived OAI Petsto
 
 - [Third-party notices](THIRD_PARTY_NOTICES.md)
 - [Change log](CHANGELOG.md)
+- [Quality and acceptance evidence](QUALITY.md)
+
+The current public release is `0.1.0`. The Mooncakes umbrella package and its four
+implementation packages are published under the `Atman-Angle` namespace. The
+release is intentionally a bounded V1: the supported profile and its limits are
+documented above and in [SUPPORTED_OPENAPI.md](docs/SUPPORTED_OPENAPI.md).
 
 ## License
 
