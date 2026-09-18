@@ -32,7 +32,12 @@ Python does not parse OpenAPI, decide names/types, construct IR, or emit SDK sou
 
 ## Installation
 
-The current release is installed from source; no Mooncakes package is published yet.
+The CLI is installed from source. The MoonBit modules are published on Mooncakes:
+
+- [Atman-Angle/oas2moon_runtime](https://mooncakes.io/docs/Atman-Angle/oas2moon_runtime)
+- [Atman-Angle/oas2moon_core](https://mooncakes.io/docs/Atman-Angle/oas2moon_core)
+- [Atman-Angle/oas2moon_codegen](https://mooncakes.io/docs/Atman-Angle/oas2moon_codegen)
+- [Atman-Angle/oas2moon_frontend](https://mooncakes.io/docs/Atman-Angle/oas2moon_frontend)
 
 Prerequisites: Python 3.12+, MoonBit (`moon` on `PATH`), PowerShell 7 for the demo, and a native C toolchain (MSVC on Windows; `cc` on Ubuntu). The CLI uses only the Python standard library.
 

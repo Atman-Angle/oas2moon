@@ -13,6 +13,7 @@
 - Fixed response-enum code generation and added real-HTTP coverage for distinct 200/201 success schemas.
 - Added explicit `SdkError.Unsupported` handling when a declared JSON response arrives with a non-JSON `Content-Type`.
 - Removed internal development reports, prompts, and the Python reference-oracle tests from the public worktree while retaining them locally; public CI and tests no longer depend on them.
+- Published the MoonBit modules `oas2moon_runtime`, `oas2moon_core`, `oas2moon_codegen`, and `oas2moon_frontend` under the `Atman-Angle` Mooncakes namespace.
 
 ## Hosted evidence referenced by this release
 
