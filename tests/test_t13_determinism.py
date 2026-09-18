@@ -66,7 +66,7 @@ def ir_file_set_for(fixture: Path) -> list[str]:
     return sorted(files)
 
 
-#: The fixed generated-package layout contract (see docs/EVIDENCE_MATRIX.md).
+#: The fixed generated-package layout contract.
 SDK_FILE_SET: list[str] = [
     "client.mbt",
     "config.mbt",
@@ -189,7 +189,7 @@ def shortlex_order(value: str) -> tuple[int, str]:
 
     MoonBit's ``String`` ``Compare`` impl is *shortlex* (shorter strings first,
     then UTF-16 code-unit order), not UTF-8 bytewise order. See
-    ``docs/DECISIONS.md`` §10. Plain ``sorted()`` is codepoint order and
+    the frozen ordering contract. Plain ``sorted()`` is codepoint order and
     disagrees with shortlex on inputs such as ``"b"`` vs ``"aa"``, so the
     canonical-order contract must be checked with this key.
     """

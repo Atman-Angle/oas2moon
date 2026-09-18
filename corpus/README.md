@@ -1,9 +1,8 @@
 # Corpus (T12)
 
 The corpus is the set of documents the project measures itself against. Its
-purpose is to prove generality **without exaggerating support**: every number in
-`docs/CORPUS_REPORT.md` must come from a document this repository can produce
-again.
+purpose is to prove generality **without exaggerating support**: every number
+must come from a document this repository can produce again.
 
 ## Layout
 
@@ -50,12 +49,12 @@ Every entry also carries:
    also valid when it remains inside the V1 profile.
 2. For a remote source, pin the exact `commit` (not `main`) and record the
    document's `sha256`.
-3. Run the metrics and commit the updated report:
+3. Run the metrics and inspect the generated summary:
 
    ```pwsh
    python tools/corpus_metrics.py `
        --json-out tests/_build/corpus-metrics/summary.json `
-       --report-out docs/CORPUS_REPORT.md
+       --report-out tests/_build/corpus-metrics/report.md
    ```
 
 4. If the new document exercises the determinism gate, add it to the corpus
@@ -70,4 +69,4 @@ See `tools/corpus_metrics.py` for the exact definitions of
 caveat: V1 refuses a spec, not an operation.
 
 `compile_pass` is only meaningful with the MoonBit toolchain available. Pass
-`--skip-compile` for a quick structural run; a published report must not skip it.
+`--skip-compile` for a quick structural run; a report used as evidence must not skip it.
