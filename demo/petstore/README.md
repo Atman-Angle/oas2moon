@@ -159,6 +159,6 @@ wrong-token probe, which exists to prove a rejected credential becomes
 - The generated package targets `native` only, matching
   `src/runtime_moonbit/moon.pkg`.
 - Hosted CI is `.github/workflows/cross-platform-ci.yml`. The accessible run
-  for commit `11acf9e` passed `Verify (Ubuntu)` and `Verify (Windows)`:
-  https://github.com/Atman-Angle/oas2moon/actions/runs/35298853128. It verifies
+  for commit `686b91b` passed `Verify (Ubuntu)` and `Verify (Windows)`:
+  https://github.com/Atman-Angle/oas2moon/actions/runs/35302482785. It verifies
   this checked fixture profile, not every OpenAPI document.
