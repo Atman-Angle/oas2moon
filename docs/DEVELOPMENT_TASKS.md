@@ -436,10 +436,10 @@ T13 → T12 → T14 → T15
 | T00 | 开发合同冻结 | DONE | `docs/DECISIONS.md`、`docs/EVIDENCE_MATRIX.md` |
 | T01 | Operation / Client IR | DONE | `src/core_moonbit/`、`tests/test_ir_format.py`、`tests/test_phase1_5.py` |
 | T02 | Runtime 契约 | DONE | `src/runtime_moonbit/`、`runtime_wbtest.mbt`（31 项） |
-| T03 | GET 纵切片 | DONE | `tests/test_t03.py`（已在 `main`） |
+| T03 | GET 纵切片 | DONE | `tests/test_t10_cli.py` 的生成包编译检查、`tests/test_t13_determinism.py`；真实请求由 T11 Demo 覆盖 |
 | T04 | 参数序列化 | DONE | `src/runtime_moonbit/encoding.mbt` + T07/T11 的真实 server 断言 |
 | T05 | 响应策略 | DONE | `src/core_moonbit` response_strategy、`tests/test_response_strategy.py` |
-| T06 | Operation Codegen | DONE | `src/codegen_moonbit` `emit_client`、`tests/test_t06.py`；已在 `main` |
+| T06 | Operation Codegen | DONE | `src/codegen_moonbit` `emit_client`、`tests/test_t10_cli.py` 的生成包编译检查、`tests/test_t13_determinism.py`、T11 Demo |
 | T07 | CRUD / JSON body | DONE | `tests/test_t07.py`、`runtime_wbtest.mbt`；已在 `main` |
 | T08 | 结构化错误 | DONE | T08 语义由 T07 的六变体 `SdkError` 覆盖；原分支因 local `$ref` fixture 回归废弃，见 §6.1 |
 | T09 | 鉴权 | DONE | T11 在真实 server 上验证 bearer/basic/apiKey header/apiKey query；已在 `main` |
