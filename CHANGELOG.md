@@ -4,12 +4,15 @@
 
 - Rewrote the README around the MoonBit-first authority boundary, runnable quick start, real HTTP demo, support limits, and hosted CI evidence.
 - Classified support claims by evidence and recorded known gaps instead of future plans.
-- Added release acceptance, third-party notices, five-minute demo instructions, and repository-hygiene/migration documentation.
+- Added source installation instructions, release acceptance, third-party notices, and five-minute demo instructions.
 - Removed two unreferenced broken Python editing helpers and three obsolete spike runners that invoked a deleted generator.
 - Kept the remaining `spike/` sources as clearly labelled historical experiments.
 - Serialized Petstore fixture capture writes and persist them before responses so repeated CI runs cannot observe stale or truncated wire evidence.
 - Added a reproducible T12 corpus harness and manifest covering an official archived Petstore 3.0 sample plus curated GitHub/OpenAI/JSONPlaceholder subsets; the committed report records 5/5 real-world specs compiled and 12/12 operations supported.
 - Fixed MoonBit PascalCase naming for the reserved type name `Error` (`ErrorValue`), found by the pinned official Petstore sample and covered by MoonBit/Python regressions.
+- Fixed response-enum code generation and added real-HTTP coverage for distinct 200/201 success schemas.
+- Added explicit `SdkError.Unsupported` handling when a declared JSON response arrives with a non-JSON `Content-Type`.
+- Removed internal development reports, prompts, and the Python reference-oracle tests from the public worktree while retaining them locally; public CI and tests no longer depend on them.
 
 ## Hosted evidence referenced by this release
 

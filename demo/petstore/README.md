@@ -41,14 +41,16 @@ Exit code is `0` when every check passes, `1` otherwise.
 | 2 | tests | hermetic unit tests are added to the generated package |
 | 3 | `moon fmt` | `moon fmt --check` is clean |
 | 4 | `moon check` | `moon check --target native --deny-warn` is clean |
-| 5 | `moon test` | 7 generated tests pass through `CaptureTransport`, no sockets |
+| 5 | `moon test` | 9 generated tests pass through `CaptureTransport`, no sockets |
 | 6 | local server | strict fixture server records every request |
 | 7 | typed GET | path + query + header asserted by the server, typed `Pet` returned |
-| 8 | JSON POST | `Content-Type`, body shape, enum wire value and omitted optionals asserted |
-| 9 | DELETE + 204 | empty body accepted, client returns `Unit` |
-| 10 | auth | **bearer, basic, api-key header and api-key query** all accepted on the wire |
-| 11 | errors | 404 → `Http(op, 404, …)`, 401 → `Http(op, 401, …)`, missing credential → `Configuration` |
-| 12 | determinism | a second generation hashes byte-identically |
+| 8 | response enum | 200 → `S200(Pet)`, 201 → `S201(CreatedPetResponse)` |
+| 9 | media mismatch | declared JSON delivered as `text/plain` → `SdkError.Unsupported` |
+| 10 | JSON POST | `Content-Type`, body shape, enum wire value and omitted optionals asserted |
+| 11 | DELETE + 204 | empty body accepted, client returns `Unit` |
+| 12 | auth | **bearer, basic, api-key header and api-key query** all accepted on the wire |
+| 13 | errors | 404 → `Http(op, 404, …)`, 401 → `Http(op, 401, …)`, missing credential → `Configuration` |
+| 14 | determinism | a second generation hashes byte-identically |
 
 The HTTP steps are performed by the **generated MoonBit client**, not by a
 Python HTTP client. The server independently validates the wire shape, so a bug
@@ -64,7 +66,7 @@ demo/petstore/
 ├── integration/        MoonBit driver that imports the generated SDK
 │   ├── moon.pkg
 │   └── main.mbt
-├── run_demo.ps1        orchestrator (steps 1-12 above)
+├── run_demo.ps1        orchestrator (steps 1-14 above)
 └── README.md
 ```
 
@@ -157,6 +159,6 @@ wrong-token probe, which exists to prove a rejected credential becomes
 - The generated package targets `native` only, matching
   `src/runtime_moonbit/moon.pkg`.
 - Hosted CI is `.github/workflows/cross-platform-ci.yml`. The accessible run
-  for commit `040f488` passed `Verify (Ubuntu)` and `Verify (Windows)`:
-  https://github.com/Atman-Angle/oas2moon/actions/runs/35177945624. It verifies
+  for commit `11acf9e` passed `Verify (Ubuntu)` and `Verify (Windows)`:
+  https://github.com/Atman-Angle/oas2moon/actions/runs/35298853128. It verifies
   this checked fixture profile, not every OpenAPI document.

@@ -30,9 +30,20 @@ Production semantics are MoonBit-first:
 
 Python does not parse OpenAPI, decide names/types, construct IR, or emit SDK source. `docs/ARCHITECTURE.md` explains the boundary in more detail.
 
-## Quick start
+## Installation
 
-Prerequisites: Python 3.12+, MoonBit (`moon` on `PATH`), PowerShell 7 for the demo, and a native C toolchain (MSVC on Windows; `cc` on Ubuntu).
+The current release is installed from source; no Mooncakes package is published yet.
+
+Prerequisites: Python 3.12+, MoonBit (`moon` on `PATH`), PowerShell 7 for the demo, and a native C toolchain (MSVC on Windows; `cc` on Ubuntu). The CLI uses only the Python standard library.
+
+```pwsh
+git clone https://github.com/Atman-Angle/oas2moon.git
+Set-Location oas2moon
+python --version
+moon version
+```
+
+## Quick start
 
 ```pwsh
 python oas2moon.py generate fixtures/petstore/openapi.json `
@@ -52,7 +63,7 @@ The generated `client.mbt` exposes typed async operation calls; required paramet
 pwsh -NoProfile -File demo/petstore/run_demo.ps1
 ```
 
-The demo runs the product CLI, adds test-only CaptureTransport tests, runs `moon fmt`, `moon check`, and `moon test`, then has a generated MoonBit client perform CRUD, authentication and error-path calls to the local fixture server. It also compares two fresh SDK trees byte-for-byte. See [`demo/petstore/README.md`](demo/petstore/README.md) for artifacts and manual stages.
+The demo runs the product CLI, adds test-only CaptureTransport tests, runs `moon fmt`, `moon check`, and `moon test`, then has a generated MoonBit client perform CRUD, response-enum, media-mismatch, authentication, and error-path calls to the local fixture server. It also compares two fresh SDK trees byte-for-byte. See [`demo/petstore/README.md`](demo/petstore/README.md) for artifacts and manual stages.
 
 ## Evidence-backed status
 
@@ -62,7 +73,7 @@ The following are evidence claims, not broad compatibility promises:
 |---|---|
 | CLI generation, JSON/YAML, local refs, typed Petstore CRUD | `python -m pytest tests -q`; `demo/petstore/run_demo.ps1` |
 | Generated package formatting, native compilation and tests | Demo steps 3–5; CI workflow |
-| Real HTTP request shape, typed decode, 204, four auth modes, HTTP/configuration errors | Demo steps 6–11 with `demo/petstore/fixture_server.py` |
+| Real HTTP request shape, typed decode, 204, response enums, unexpected response media type, four auth modes, HTTP/configuration errors | Demo steps 6–11 with `demo/petstore/fixture_server.py` |
 | Deterministic output | Demo step 12 and `tests/test_t13_determinism.py` |
 | Bounded real-world corpus generation and compilation | `python tools/corpus_metrics.py --json-out tests/_build/corpus-metrics/summary.json --report-out docs/CORPUS_REPORT.md`; 5/5 real-world specs compiled and 12/12 operations were supported |
 | Hosted Ubuntu and Windows verification | [cross-platform-ci run 35298853128](https://github.com/Atman-Angle/oas2moon/actions/runs/35298853128), commit `11acf9e`: both jobs `success` |
@@ -75,7 +86,7 @@ The evidence classification and exact semantics are in [`docs/SUPPORTED_OPENAPI.
 
 V1 does not support OpenAPI 3.1, external/network `$ref`, `oneOf`, `anyOf`, `discriminator`, multipart, XML, callbacks/webhooks, OAuth authorization flows, or arbitrary parameter serialization styles. Unsupported semantics must produce a stable diagnostic; a `Json` fallback is permitted only where documented wire behaviour stays correct.
 
-Known evidence gaps: the corpus is deliberately bounded to one full archived OAI Petstore sample plus project/curated subsets, so it does not establish full GitHub/OpenAI support or arbitrary-document compatibility. Response enums and `UnsupportedMediaType` also lack a real-HTTP demo case.
+Known limits: the corpus is deliberately bounded to one full archived OAI Petstore sample plus project/curated subsets, so it does not establish full GitHub/OpenAI support or arbitrary-document compatibility. A response that declares JSON but arrives with a non-JSON media type now fails explicitly as `SdkError.Unsupported`.
 
 ## Release material
 
@@ -84,7 +95,6 @@ Known evidence gaps: the corpus is deliberately bounded to one full archived OAI
 - [Measured corpus report](docs/CORPUS_REPORT.md)
 - [Five-minute defence demo](docs/DEMO_SCRIPT.md)
 - [Third-party notices](THIRD_PARTY_NOTICES.md)
-- [Repository hygiene and migration direction](docs/REPOSITORY_HYGIENE.md)
 - [Change log](CHANGELOG.md)
 
 ## License

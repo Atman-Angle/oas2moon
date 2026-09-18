@@ -47,6 +47,7 @@ No error variant may discard the operation context needed for diagnosis. Whether
 - Multiple successful statuses with different schemas: generate an operation-specific response enum carrying status and typed payload.
 - A declared success without a schema is accepted only when body absence is unambiguous; otherwise emit a stable diagnostic.
 - Any non-2xx response becomes `SdkError::Http`; it is never decoded as a success type.
+- A declared JSON response whose wire `Content-Type` is not JSON fails as `SdkError::Unsupported`; it is never decoded as if the declared representation were valid.
 - Redirect handling belongs to the transport adapter and is not generated operation behavior.
 
 ## 4. Optional and nullable
@@ -172,7 +173,7 @@ and not `client.get_pet_by_id(id=42)`, which MoonBit rejects for a parameter
 declared as positional.
 
 **Evidence.** `moonbit-community/elasticsearch.mbt` — the reference
-implementation identified in `SPIKE_REPORT.md` — generates
+implementation identified in the dependency audit — generates
 `pub fn AsyncSearchDeleteRequest::new(id : String, query? : ... = ...)` and
 `pub async fn Client::async_search_delete(self : Client, request : ...)`, i.e.
 positional required arguments, labelled optional arguments, and async methods.
@@ -181,6 +182,5 @@ compiles the generated package with `moon fmt` + `moon check --deny-warn`,
 runs its generated tests with `moon test`, and drives the client against a real
 local HTTP server.
 
-**Consequences.** `PROJECT_SPEC.md` and `DEVELOPMENT_SPEC.md` samples were
-updated to this shape; the earlier `Result`-returning sketches were never
+**Consequences.** The `PROJECT_SPEC.md` samples were updated to this shape; the earlier `Result`-returning sketches were never
 implemented and are not part of the contract.

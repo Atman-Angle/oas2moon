@@ -9,8 +9,8 @@ Regenerate with:
 python tools/corpus_metrics.py --json-out tests/_build/corpus-metrics/summary.json --report-out docs/CORPUS_REPORT.md
 ```
 
-Metric definitions and granularity caveats: the T12 section of
-`docs/DEVELOPMENT_TASKS.md`. Corpus layout and provenance rules:
+Metric definitions and granularity caveats: the module docstring in
+`tools/corpus_metrics.py`. Corpus layout and provenance rules:
 `corpus/README.md`.
 
 ## Totals

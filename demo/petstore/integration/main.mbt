@@ -99,6 +99,56 @@ async fn main {
     Err(err) => report.failed("GET", err)
   }
 
+  // ---- multiple success schemas become a typed response enum -------------
+  let existing_result : Result[
+    @sdk.GetPetResultResponse,
+    @sdk.SdkError,
+  ] = Ok(client.get_pet_result(42L, created=false)) catch {
+    err => Err(err)
+  }
+  match existing_result {
+    Ok(@sdk.S200(pet)) =>
+      report.check_eq("response enum S200 carries Pet", pet.name, "Spike")
+    Ok(@sdk.S201(_)) => report.failures.push("expected response enum S200")
+    Err(err) => report.failed("response enum S200", err)
+  }
+
+  let created_result : Result[
+    @sdk.GetPetResultResponse,
+    @sdk.SdkError,
+  ] = Ok(client.get_pet_result(42L, created=true)) catch {
+    err => Err(err)
+  }
+  match created_result {
+    Ok(@sdk.S201(created)) =>
+      report.check_eq(
+        "response enum S201 carries CreatedPetResponse",
+        created.created_at,
+        "2026-09-18T00:00:00Z",
+      )
+    Ok(@sdk.S200(_)) => report.failures.push("expected response enum S201")
+    Err(err) => report.failed("response enum S201", err)
+  }
+
+  // ---- unexpected response media type fails explicitly ------------------
+  let media_mismatch : Result[@sdk.Pet, @sdk.SdkError] = Ok(
+    client.get_media_mismatch(),
+  ) catch {
+    err => Err(err)
+  }
+  match media_mismatch {
+    Ok(_) => report.failures.push("media mismatch unexpectedly decoded")
+    Err(err) =>
+      report.check(
+        "non-JSON response media type becomes Unsupported",
+        match err {
+          @sdk.Unsupported(op, msg) =>
+            op == "getMediaMismatch" && msg.contains("text/plain")
+          _ => false
+        },
+      )
+  }
+
   let new_pet = @sdk.Pet::new(99L, "Created", @sdk.Available, tags=["a", "b"])
   let post_outcome : Result[@sdk.Pet, @sdk.SdkError] = Ok(client.add_pet(new_pet)) catch {
     err => Err(err)

@@ -1255,15 +1255,19 @@ fn emit_operation(out : StringBuilder, op : OperationIr) -> Unit {
       for v in variants {
         line(out, "    " + v.status.to_string() + " => {")
         let tname = render_type(v.type_ref)
-        line(out, "      " + response_enum_name(op) + "::" + variant_name(v))
         line(
           out,
-          "      (decode_json(response, operation_id=" +
+          "      " + response_enum_name(op) + "::" + variant_name(v) + "(",
+        )
+        line(
+          out,
+          "        (decode_json(response, operation_id=" +
           quoted(op.operation_id) +
           ") : " +
           tname +
-          ")",
+          "),",
         )
+        line(out, "      )")
         line(out, "    }")
       }
       line(

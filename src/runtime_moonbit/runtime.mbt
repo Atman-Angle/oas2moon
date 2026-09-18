@@ -277,14 +277,52 @@ pub fn[T : ToJson] encode_json(value : T) -> String {
 }
 
 ///|
+/// Return the response `Content-Type`, accepting the two common header
+/// capitalizations. HTTP header names are case-insensitive.
+fn response_content_type(response : Response) -> String? {
+  match response.headers.get("Content-Type") {
+    Some(value) => Some(value)
+    None => response.headers.get("content-type")
+  }
+}
+
+///|
+/// Whether a response media type is a JSON representation.
+///
+/// Parameters such as `charset=utf-8` are ignored. Both `application/json`
+/// and structured suffixes such as `application/problem+json` are accepted.
+fn is_json_media_type(value : String) -> Bool {
+  let lower = value.to_lower()
+  let media_type = match lower.find(";") {
+    Some(index) => lower[:index].trim().to_owned()
+    None => lower
+  }
+  media_type == "application/json" || media_type.has_suffix("+json")
+}
+
+///|
 /// Decode a JSON response body into the target type.
 ///
-/// `operation_id` is included in any raised `Decode` error so that
-/// callers can programmatically identify which operation failed.
+/// A declared JSON operation that receives an unexpected response media type
+/// fails explicitly instead of attempting a known-wrong decode. A missing
+/// `Content-Type` is tolerated for transport-neutral capture fixtures.
+///
+/// `operation_id` is included in any raised error so that callers can
+/// programmatically identify which operation failed.
 pub fn[T : FromJson] decode_json(
   response : Response,
   operation_id? : String = "",
 ) -> T raise SdkError {
+  match response_content_type(response) {
+    Some(media_type) =>
+      if !is_json_media_type(media_type) {
+        raise Unsupported(
+          operation_id,
+          "unsupported response media type: " + media_type,
+        )
+      }
+    None => ()
+  }
   let json : Json = @json.parse(response.body) catch {
     err =>
       raise Decode(operation_id, "failed to parse JSON: " + err.to_string())
