@@ -96,6 +96,7 @@ _RUNTIME_FILES = [
 ]
 
 _RUNTIME_PKG = """import {
+  "moonbitlang/core/debug",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/json",
   "moonbitlang/core/string",

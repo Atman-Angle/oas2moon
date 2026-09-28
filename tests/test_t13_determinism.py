@@ -247,6 +247,7 @@ def assert_ir_ordering(ir: dict, label: str) -> None:
 #: be a subsequence of this order: fixed for a given IR, never machine
 #: dependent. It is not alphabetical on purpose (core before async runtime).
 _PKG_IMPORT_ORDER = [
+    "moonbitlang/core/debug",
     "moonbitlang/core/json",
     "moonbitlang/core/encoding/utf8",
     "moonbitlang/async/http",

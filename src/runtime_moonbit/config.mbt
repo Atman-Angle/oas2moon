@@ -12,6 +12,9 @@ pub struct Config {
 } derive(Debug)
 
 ///|
+pub extend Config with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
 /// Create a runtime configuration.
 ///
 /// `base_url` is split into an origin (`scheme://authority`) and a base path.

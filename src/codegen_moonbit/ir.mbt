@@ -254,19 +254,19 @@ fn parse_type_ref(value : Json, location : String) -> TypeRef raise {
       if !is_known_scalar(name) {
         raise Failure(location + ": unsupported scalar " + name.escape())
       }
-      { kind, name: Some(name), item: None }
+      { kind, name: Some(name), item: None, }
     }
     "named" => {
       let name = require_string_field(fields, "name", location)
       if name.length() == 0 {
         raise Failure(location + ": named type name must not be empty")
       }
-      { kind, name: Some(name), item: None }
+      { kind, name: Some(name), item: None, }
     }
     "array" => {
       let item_value = require_field(fields, "item", location)
       let item = parse_type_ref(item_value, location + ".item")
-      { kind, name: None, item: Some(item) }
+      { kind, name: None, item: Some(item), }
     }
     _ => raise Failure(location + ": unsupported type kind " + kind.escape())
   }
@@ -309,7 +309,7 @@ fn parse_field(value : Json, location : String) -> FieldIr raise {
   }
   let type_value = require_field(fields, "type", location)
   let type_ref = parse_type_ref(type_value, location + ".type")
-  { name, wire_name, type_ref, presence }
+  { name, wire_name, type_ref, presence, }
 }
 
 ///|
@@ -344,9 +344,9 @@ fn parse_enum(
     }
     taken_names[n] = true
     taken_wires[w] = true
-    members.push({ name: n, wire: w })
+    members.push({ name: n, wire: w, })
   }
-  { name, members }
+  { name, members, }
 }
 
 ///|
@@ -502,7 +502,7 @@ fn parse_parameter(value : Json, location : String) -> ParameterIr raise {
   }
   let type_value = require_field(fields, "type", location)
   let type_ref = parse_type_ref(type_value, location + ".type")
-  { name, wire_name, location: loc, type_ref, required, nullable, presence }
+  { name, wire_name, location: loc, type_ref, required, nullable, presence, }
 }
 
 ///|
@@ -514,7 +514,7 @@ fn parse_request_body(value : Json, location : String) -> RequestBodyIr? raise {
       let type_ref = optional_type_ref_field(fields, "type", location)
       let required = require_bool_field(fields, "required", location)
       let media_type = optional_string_field(fields, "media_type", location)
-      Some({ type_ref, required, media_type })
+      Some({ type_ref, required, media_type, })
     }
   }
 }
@@ -528,7 +528,7 @@ fn parse_response(value : Json, location : String) -> ResponseIr raise {
   }
   let type_ref = optional_type_ref_field(fields, "type", location)
   let media_type = optional_string_field(fields, "media_type", location)
-  { status, type_ref, media_type }
+  { status, type_ref, media_type, }
 }
 
 ///|
@@ -571,7 +571,7 @@ fn parse_response_strategy(
         }
         let tv = require_field(vf, "type", vloc)
         let type_ref = parse_type_ref(tv, vloc + ".type")
-        variants.push({ status, type_ref })
+        variants.push({ status, type_ref, })
       }
       ResponseEnum(variants)
     }
@@ -603,7 +603,7 @@ fn parse_auth_scheme(value : Json, location : String) -> AuthSchemeIr raise {
   let kind = require_string_field(fields, "kind", location)
   let loc = optional_string_field(fields, "location", location)
   let key_name = optional_string_field(fields, "key_name", location)
-  { name, kind, location: loc, key_name }
+  { name, kind, location: loc, key_name, }
 }
 
 ///|
@@ -792,5 +792,5 @@ pub fn parse_api(value : Json) -> ApiIr raise {
     }
     None => ()
   }
-  { module_name, title, version, servers, auth_schemes, models, operations }
+  { module_name, title, version, servers, auth_schemes, models, operations, }
 }

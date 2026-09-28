@@ -158,7 +158,6 @@ wrong-token probe, which exists to prove a rejected credential becomes
 - The fixture server binds to loopback; it is not a general mock server.
 - The generated package targets `native` only, matching
   `src/runtime_moonbit/moon.pkg`.
-- Hosted CI is `.github/workflows/cross-platform-ci.yml`. The accessible run
-  for commit `686b91b` passed `Verify (Ubuntu)` and `Verify (Windows)`:
-  https://github.com/Atman-Angle/oas2moon/actions/runs/35302482785. It verifies
-  this checked fixture profile, not every OpenAPI document.
+- Hosted CI is `.github/workflows/cross-platform-ci.yml`. Verify the workflow
+  on the candidate commit before treating the hosted gate as passed. It checks
+  this fixture profile, not every OpenAPI document.

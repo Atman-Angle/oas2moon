@@ -15,6 +15,7 @@ needs neither a server nor a socket; the real-HTTP evidence comes from
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -129,7 +130,7 @@ def argument(param, models):
     return ("positional", value)
 
 
-def emit_tests(ir):
+def emit_tests(ir, module_alias="petstore_demo"):
     models = model_map(ir)
     lines = [
         "///|",
@@ -202,7 +203,12 @@ def emit_tests(ir):
             lines.append("  assert_eq(request.path(), %s)" % moon_string(path))
         lines.append("}")
         lines.append("")
-    return "\n".join(lines)
+    source = "\n".join(lines)
+    names = ["CaptureTransport", "Response", "Client"]
+    names.extend(model["name"] for model in ir.get("models", []) if model.get("name"))
+    for name in names:
+        source = re.sub(rf"(?<![@A-Za-z0-9_]){name}\b", f"@{module_alias}.{name}", source)
+    return source
 
 
 def ensure_test_import(package_dir):
@@ -228,8 +234,10 @@ def main(argv):
         return 1
 
     ir = json.loads(ir_path.read_text(encoding="utf-8"))
+    module_line = (package_dir / "moon.mod").read_text(encoding="utf-8").splitlines()[0]
+    module_alias = module_line.split('"', 2)[1].rsplit("/", 1)[-1]
     (package_dir / "petstore_test.mbt").write_text(
-        emit_tests(ir), encoding="utf-8", newline="\n"
+        emit_tests(ir, module_alias), encoding="utf-8", newline="\n"
     )
     added = ensure_test_import(package_dir)
     print(

@@ -27,6 +27,9 @@ pub(all) suberror SdkError {
 } derive(Debug)
 
 ///|
+pub extend SdkError with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
 /// Convenience constructor for a transport error.
 pub fn SdkError::transport(operation_id : String, message : String) -> SdkError {
   Transport(operation_id, message)
@@ -163,6 +166,9 @@ pub struct Request {
 } derive(Debug)
 
 ///|
+pub extend Request with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
 pub fn Request::new(
   http_method : String,
   path : String,
@@ -170,7 +176,7 @@ pub fn Request::new(
   headers? : Map[String, String] = Map([]),
   body? : String,
 ) -> Request {
-  { http_method, path, query, headers, body }
+  { http_method, path, query, headers, body, }
 }
 
 ///|
@@ -207,12 +213,15 @@ pub struct Response {
 } derive(Debug)
 
 ///|
+pub extend Response with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
 pub fn Response::new(
   status : Int,
   headers? : Map[String, String] = Map([]),
   body? : String = "",
 ) -> Response {
-  { status, headers, body }
+  { status, headers, body, }
 }
 
 ///|
@@ -252,8 +261,11 @@ pub struct CaptureTransport {
 } derive(Debug)
 
 ///|
+pub extend CaptureTransport with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
 pub fn CaptureTransport::new(response : Response) -> CaptureTransport {
-  { response, last_request: None }
+  { response, last_request: None, }
 }
 
 ///|

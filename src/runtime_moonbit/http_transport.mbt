@@ -86,7 +86,7 @@ pub async fn transmit(
       client.read_all().text()
     }
     client.close()
-    { status: response.code, headers: response.headers, body }
+    { status: response.code, headers: response.headers, body, }
   } catch {
     err => raise Transport(operation_id, err.to_string())
   }

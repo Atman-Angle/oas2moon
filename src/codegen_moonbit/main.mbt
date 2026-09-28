@@ -304,6 +304,7 @@ fn emit_runtime_helpers(out : StringBuilder) -> Unit {
   line(out, "  Null")
   line(out, "  Value(T)")
   line(out, "} derive(Eq, Debug)")
+  emit_trait_extensions(out, "Presence", ["Eq", "@moonbitlang/core/debug.Debug"])
   line(out, "")
   line(out, "///|")
   line(out, "fn __dec_int(json : Json, path : JPath) -> Int raise JErr {")
@@ -345,6 +346,32 @@ fn emit_runtime_helpers(out : StringBuilder) -> Unit {
 }
 
 ///|
+/// Emit explicit method promotion declarations required by MoonBit 0.10.14.
+/// Without these, `--deny-warn` rejects derived/implemented traits.
+fn emit_trait_extensions(
+  out : StringBuilder,
+  type_name : String,
+  traits : Array[String],
+) -> Unit {
+  for trait_name in traits {
+    let methods = if trait_name == "Eq" {
+      "{not_equal, equal}"
+    } else if trait_name == "ToJson" {
+      "{to_json}"
+    } else if trait_name == "@moonbitlang/core/json.FromJson" {
+      "{from_json}"
+    } else {
+      "{to_repr}"
+    }
+    line(
+      out,
+      "pub extend " + type_name + " with " + trait_name + "::" + methods,
+    )
+  }
+  line(out, "")
+}
+
+///|
 fn emit_enum(out : StringBuilder, model : EnumModelIr) -> Unit {
   line(out, "///|")
   line(out, "pub(all) enum " + model.name + " {")
@@ -352,6 +379,7 @@ fn emit_enum(out : StringBuilder, model : EnumModelIr) -> Unit {
     line(out, "  " + enum_member.name)
   }
   line(out, "} derive(Eq, Debug)")
+  emit_trait_extensions(out, model.name, ["Eq", "@moonbitlang/core/debug.Debug"])
   line(out, "")
   line(out, "///|")
   line(
@@ -376,6 +404,7 @@ fn emit_enum(out : StringBuilder, model : EnumModelIr) -> Unit {
   )
   line(out, "  Json::string(self.to_wire())")
   line(out, "}")
+  emit_trait_extensions(out, model.name, ["ToJson"])
   line(out, "")
   line(out, "///|")
   line(
@@ -402,6 +431,7 @@ fn emit_enum(out : StringBuilder, model : EnumModelIr) -> Unit {
   )
   line(out, "  }")
   line(out, "}")
+  emit_trait_extensions(out, model.name, ["@moonbitlang/core/json.FromJson"])
   line(out, "")
 }
 
@@ -421,6 +451,7 @@ fn emit_struct_declaration(out : StringBuilder, model : StructModelIr) -> Unit {
     None => ()
   }
   line(out, "} derive(Eq, Debug)")
+  emit_trait_extensions(out, model.name, ["Eq", "@moonbitlang/core/debug.Debug"])
   line(out, "")
 }
 
@@ -592,6 +623,7 @@ fn emit_struct_encoder(out : StringBuilder, model : StructModelIr) -> Unit {
   }
   line(out, "  Json::object(__m)")
   line(out, "}")
+  emit_trait_extensions(out, model.name, ["ToJson"])
   line(out, "")
 }
 
@@ -761,6 +793,7 @@ fn emit_struct_decoder(out : StringBuilder, model : StructModelIr) -> Unit {
     }
   }
   line(out, "}")
+  emit_trait_extensions(out, model.name, ["@moonbitlang/core/json.FromJson"])
   line(out, "")
 }
 
@@ -1300,6 +1333,7 @@ fn emit_response_enums(out : StringBuilder, api : ApiIr) -> Unit {
           )
         }
         line(out, "} derive(Debug)")
+        emit_trait_extensions(out, ename, ["@moonbitlang/core/debug.Debug"])
         line(out, "")
       }
       _ => ()
@@ -1319,6 +1353,7 @@ fn emit_client(api : ApiIr) -> String {
   line(out, "  config : Config")
   line(out, "  capture : CaptureTransport?")
   line(out, "} derive(Debug)")
+  emit_trait_extensions(out, "Client", ["@moonbitlang/core/debug.Debug"])
   line(out, "")
   line(out, "///|")
   line(out, "/// Create a client.")
@@ -1418,6 +1453,7 @@ fn api_has_operations(api : ApiIr) -> Bool {
 ///|
 fn package_file(needs_string : Bool, has_operations : Bool) -> String {
   let imports : Array[String] = []
+  imports.push("\"moonbitlang/core/debug\"")
   imports.push("\"moonbitlang/core/json\"")
   if has_operations {
     imports.push("\"moonbitlang/core/encoding/utf8\"")
