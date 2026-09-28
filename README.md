@@ -89,6 +89,22 @@ The following are evidence claims, not broad compatibility promises:
 
 The CI workflow is [`.github/workflows/cross-platform-ci.yml`](.github/workflows/cross-platform-ci.yml). It runs MoonBit package checks, determinism tests, the Python suite, and the real-HTTP demo on `ubuntu-latest` and `windows-latest`. It does not establish compatibility beyond the checked fixture set.
 
+## Testing and verification
+
+Run the complete local verification from the repository root:
+
+```pwsh
+python -m pytest tests -q
+pwsh -NoProfile -File demo/petstore/run_demo.ps1
+```
+
+The suite covers OpenAPI parsing and normalization, naming and type mapping,
+code generation, deterministic regeneration, generated-package formatting,
+native build/check/test, JSON encoding and decoding, request serialization,
+authentication, HTTP errors, 204 responses, unsupported media types, and real
+loopback HTTP behavior. The GitHub Actions workflow repeats these checks on
+Ubuntu and Windows and includes an explicit native build step.
+
 ## Supported profile and limits
 
 The tested profile includes OpenAPI 3.0.0–3.0.3 JSON/common YAML, local refs, common models, GET/POST/PUT/PATCH/DELETE, JSON bodies/responses, common path/query/header serialization, and Bearer/Basic/API-key auth.

@@ -61,8 +61,6 @@ corpus/_downloads/
 /prompts/
 /src/README.md
 /spike/README.md
-/docs/
 /tests/reference_python/
 /tests/test_phase1.py
 /tests/test_phase1_5.py
-/tests/test_phase2.py
