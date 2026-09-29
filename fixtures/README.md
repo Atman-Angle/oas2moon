@@ -25,4 +25,10 @@ Store pinned public OpenAPI fixtures or reduced reproducible subsets with:
 - reduction method if subset;
 - expected operation count.
 
+License handling is part of the fixture contract. Every third-party-derived
+file must have a pinned source and an SPDX/terms entry in
+`THIRD_PARTY_NOTICES.md`. Do not describe a source as merely "public". If an
+upstream license cannot be established, keep the fixture project-authored or
+fetch it during tests instead of committing copied source material.
+
 Do not silently modify a real-world fixture merely to make generation pass.
