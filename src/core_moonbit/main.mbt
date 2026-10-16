@@ -22,6 +22,18 @@ fn main raise {
   }
   let source = @fs.read_file_to_string(args[1])
   let root = @json.parse(source)
+  let diagnostics = validate_support(root)
+  let mut failed = false
+  for d in diagnostics {
+    println(diagnostic_to_string(d))
+    if d.severity == Error {
+      failed = true
+    }
+  }
+  if failed {
+    @sys.exit(4)
+    return
+  }
   let api = lower(root, module_name)
   @fs.write_string_to_file(args[2], api_to_json_string(api))
 }

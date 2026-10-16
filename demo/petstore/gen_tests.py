@@ -166,9 +166,14 @@ def emit_tests(ir, module_alias="petstore_demo"):
         lines.append('    bearer_token="test-token",')
         lines.append('    basic_username="test-user",')
         lines.append('    basic_password="test-pass",')
-        lines.append('    api_key_name="X-Api-Key",')
+        schemes = {scheme["name"]: scheme for scheme in ir.get("auth_schemes", [])}
+        groups = operation.get("security", [])
+        first_group = groups[0] if groups and isinstance(groups[0], list) else groups
+        key_scheme = next((schemes[name] for name in first_group
+                           if name in schemes and schemes[name]["kind"] == "apiKey"), {})
+        lines.append('    api_key_name=%s,' % moon_string(key_scheme.get("key_name", "X-Api-Key")))
         lines.append('    api_key_value="test-key",')
-        lines.append('    api_key_location="header",')
+        lines.append('    api_key_location=%s,' % moon_string(key_scheme.get("location", "header")))
         lines.append("  )")
 
         positional = []

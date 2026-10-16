@@ -123,6 +123,7 @@ pub struct AuthSchemeIr {
 pub struct OperationIr {
   operation_id : String
   fn_name : String
+  response_name : String
   http_method : HttpMethod
   path : String
   tags : Array[String]
@@ -132,7 +133,7 @@ pub struct OperationIr {
   success_responses : Array[ResponseIr]
   error_responses : Array[ResponseIr]
   response_strategy : ResponseStrategy
-  security : Array[String]
+  security : Array[Array[String]]
   source : SourceLocation
 } derive(Eq, Debug)
 

@@ -35,14 +35,21 @@ fn request_method(
 /// encoder uses, so repeated keys keep their declared order.
 ///
 /// Returns `""` when there is nothing to encode and `"?k=v&k2=v2"` otherwise.
-pub fn render_query(params : Array[(String, String)]) -> String {
-  if params.length() == 0 {
+pub fn render_query(
+  params : Array[(String, String)],
+  joined? : Array[(String, Array[String])] = [],
+) -> String {
+  if params.length() == 0 && joined.length() == 0 {
     return ""
   }
   let encoded : Array[(String, String)] = []
   for pair in params {
     let (key, value) = pair
     encoded.push((percent_encode(key), percent_encode(value)))
+  }
+  for pair in joined {
+    let (name, values) = pair
+    encoded.push(encode_query_array_joined(name, values))
   }
   "?" + build_query_string(encoded)
 }
@@ -61,7 +68,9 @@ pub async fn transmit(
   request : Request,
   operation_id? : String = "",
 ) -> Response raise SdkError {
-  let target = config.base_path() + request.path + render_query(request.query)
+  let target = config.base_path() +
+    request.path +
+    render_query(request.query, joined=request.joined_query)
   let headers = request.headers
   match request.body {
     Some(text) =>

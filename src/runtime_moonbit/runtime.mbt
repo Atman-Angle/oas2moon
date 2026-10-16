@@ -161,6 +161,7 @@ pub struct Request {
   http_method : String
   path : String
   query : Array[(String, String)]
+  joined_query : Array[(String, Array[String])]
   headers : Map[String, String]
   body : String?
 } derive(Debug)
@@ -173,10 +174,11 @@ pub fn Request::new(
   http_method : String,
   path : String,
   query? : Array[(String, String)] = [],
+  joined_query? : Array[(String, Array[String])] = [],
   headers? : Map[String, String] = Map([]),
   body? : String,
 ) -> Request {
-  { http_method, path, query, headers, body, }
+  { http_method, path, query, joined_query, headers, body, }
 }
 
 ///|
@@ -547,4 +549,43 @@ pub fn auth_query(
     }
   }
   params
+}
+
+///|
+/// Select the first complete OR alternative. Each tuple retains scheme identity,
+/// kind, wire name and location; all schemes inside an alternative are required.
+pub fn select_security(
+  cfg : Config,
+  alternatives : Array[Array[(String, String, String, String)]],
+  operation_id? : String = "",
+) -> Array[String] raise SdkError {
+  for group in alternatives {
+    let requirements : Array[String] = []
+    let mut complete = true
+    for scheme in group {
+      let (_, kind, key, location) = scheme
+      let available = match kind {
+        "bearer" => cfg.bearer_token() is Some(_)
+        "basic" =>
+          cfg.basic_username() is Some(_) && cfg.basic_password() is Some(_)
+        "apiKey" =>
+          cfg.api_key_value() is Some(_) &&
+          cfg.api_key_name() is Some(_) &&
+          cfg.api_key_location() is Some(_) &&
+          (key == "" || cfg.api_key_name() == Some(key)) &&
+          (location == "" || cfg.api_key_location() == Some(location))
+        _ => false
+      }
+      if !available {
+        complete = false
+      }
+      requirements.push(kind)
+    }
+    if complete {
+      return requirements
+    }
+  }
+  raise Configuration(
+    operation_id, "no security alternative has complete credentials",
+  )
 }

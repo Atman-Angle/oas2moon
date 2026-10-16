@@ -130,7 +130,11 @@ fn parse_status(r : Json) -> Int {
 
 ///|
 /// Parse a schema JSON node into a model IR.
-fn parse_model(schema_json : Json, model_name : String) -> ModelIr {
+fn parse_model(
+  schema_json : Json,
+  model_name : String,
+  names : Map[String, String],
+) -> ModelIr {
   let kind = text(get(schema_json, "kind"))
   if kind == "string" {
     let enum_values = arr(get(schema_json, "enum"))
@@ -142,7 +146,7 @@ fn parse_model(schema_json : Json, model_name : String) -> ModelIr {
         let name = unique(pascal(wire), taken)
         members.push((name, wire))
       }
-      return EnumModel({ name: model_name, members })
+      return EnumModel({ name: model_name, members, })
     }
   }
   // Parse as struct
@@ -171,7 +175,7 @@ fn parse_model(schema_json : Json, model_name : String) -> ModelIr {
     let f = {
       name: unique(snake(name), taken_fields),
       wire_name: name,
-      type_ref: map_schema(child_schema),
+      type_ref: map_schema(child_schema, names~),
       presence: presence_val,
     }
     if is_req {
@@ -201,7 +205,9 @@ fn parse_model(schema_json : Json, model_name : String) -> ModelIr {
 /// Parse an operation JSON node into an OperationIr.
 fn parse_operation(
   op_json : Json,
-  auth_kind_map : Map[String, String],
+  names : Map[String, String],
+  taken_functions : Map[String, Bool],
+  taken_types : Map[String, Bool],
 ) -> OperationIr {
   let operation_id = text(get(op_json, "operationId"))
   let method_str = text(get(op_json, "method"))
@@ -224,9 +230,12 @@ fn parse_operation(
       required,
       nullable,
       style: parse_style(get(p, "style"), text(get(p, "in"))),
-      explode: truth(get(p, "explode")),
-      type_ref: map_schema(sc),
-      source: { pointer: "" },
+      explode: match get(p, "explode") {
+        Null => parse_style(get(p, "style"), text(get(p, "in"))) == Form
+        v => truth(v)
+      },
+      type_ref: map_schema(sc, names~),
+      source: { pointer: "", },
     }
     if required {
       parsed_params.push(param)
@@ -250,10 +259,10 @@ fn parse_operation(
         _ => None
       }
       let body_type = match body_map.get("schema") {
-        Some(s) => Some(map_schema(s))
+        Some(s) => Some(map_schema(s, names~))
         None => None
       }
-      Some({ type_ref: body_type, required: body_req, media_type: body_media })
+      Some({ type_ref: body_type, required: body_req, media_type: body_media, })
     }
     _ => None
   }
@@ -274,45 +283,41 @@ fn parse_operation(
     let status = parse_status(r)
     let rtype = match get(r, "schema") {
       Null => None
-      x => Some(map_schema(x))
+      x => Some(map_schema(x, names~))
     }
     let media = match get(r, "media_type") {
       Null => None
       String(s) => Some(s)
       _ => None
     }
-    let response = { status, type_ref: rtype, media_type: media }
+    let response = { status, type_ref: rtype, media_type: media, }
     if status >= 200 && status < 300 {
       success.push(response)
     } else {
       errors.push(response)
     }
   }
-  // Parse security using auth_kind_map
-  let security : Array[String] = []
+  // Preserve OR alternatives and AND scheme identities.
+  let security : Array[Array[String]] = []
   for alt in arr(get(op_json, "security")) {
-    let names_arr = arr(alt)
-    for name_json in names_arr {
-      let name = text(name_json)
-      let label = match auth_kind_map.get(name) {
-        Some(kind) => kind
-        None => name
-      }
-      if !security.contains(label) {
-        security.push(label)
-      }
+    let group : Array[String] = []
+    for name in arr(alt) {
+      group.push(text(name))
     }
+    security.push(sorted_strings(group))
   }
   // Parse tags
   let tags : Array[String] = []
   for t in arr(get(op_json, "tags")) {
     tags.push(text(t))
   }
-  let fn_name = operation_fn_name(operation_id)
+  let fn_name = unique(operation_fn_name(operation_id), taken_functions)
   let strategy = determine_response_strategy(success)
+  let response_name = unique(pascal(fn_name) + "Response", taken_types)
   {
     operation_id,
     fn_name,
+    response_name,
     http_method: parse_method(method_str),
     path,
     tags,
@@ -323,7 +328,7 @@ fn parse_operation(
     error_responses: errors,
     response_strategy: strategy,
     security,
-    source: { pointer: "" },
+    source: { pointer: "", },
   }
 }
 
@@ -385,17 +390,17 @@ fn determine_response_strategy(
     }
     ok
   }
-  if all_same {
+  if all_same && with_body.length() == responses.length() {
     match first_type {
       Some(t) => return SingleResult(t)
       None => return NoContent
     }
   }
   let variants : Array[ResponseVariant] = []
-  for r in with_body {
+  for r in responses {
     match r.type_ref {
-      Some(t) => variants.push({ status: r.status, type_ref: t })
-      None => ()
+      Some(t) => variants.push({ status: r.status, type_ref: t, })
+      None => variants.push({ status: r.status, type_ref: Scalar("Unit"), })
     }
   }
   ResponseEnum(variants)
@@ -494,9 +499,8 @@ pub fn lower(root : Json, module_name : String) -> ApiIr {
   for s in arr(get(root, "servers")) {
     servers.push(text(s))
   }
-  // Auth schemes + auth_kind_map
+  // Auth scheme identities and metadata
   let auth_schemes : Array[AuthSchemeIr] = []
-  let auth_kind_map : Map[String, String] = Map([])
   // Same reasoning as struct properties: `securitySchemes` is an unordered map.
   let scheme_names : Array[String] = []
   for name, _scheme in obj(get(root, "securitySchemes")) {
@@ -523,8 +527,7 @@ pub fn lower(root : Json, module_name : String) -> ApiIr {
       String(s) => Some(s)
       _ => None
     }
-    auth_schemes.push({ name, kind, location, key_name })
-    auth_kind_map[name] = kind
+    auth_schemes.push({ name, kind, location, key_name, })
   }
   // Models
   let models : Array[ModelIr] = []
@@ -533,18 +536,31 @@ pub fn lower(root : Json, module_name : String) -> ApiIr {
   for name, _ in obj(get(root, "schemas")) {
     schema_names.push(name)
   }
+  let names : Map[String, String] = Map([])
   for schema_name in sorted_strings(schema_names) {
     let model_name = unique(pascal(schema_name), taken_model_names)
+    names["#/components/schemas/" +
+    schema_name.replace(old="~", new="~0").replace(old="/", new="~1")] = model_name
+  }
+  for schema_name in sorted_strings(schema_names) {
     let schema = get(get(root, "schemas"), schema_name)
-    models.push(parse_model(schema, model_name))
+    let model_name = names["#/components/schemas/" +
+      schema_name.replace(old="~", new="~0").replace(old="/", new="~1")]
+    models.push(parse_model(schema, model_name, names))
   }
   let sorted_models = sort_models(models)
   // Operations
   let ops = arr(get(root, "operations"))
   let sorted_ops = sort_operations(ops)
   let operations : Array[OperationIr] = []
+  let taken_functions : Map[String, Bool] = Map([
+    ("new", true),
+    ("send_request", true),
+  ])
   for op in sorted_ops {
-    operations.push(parse_operation(op, auth_kind_map))
+    operations.push(
+      parse_operation(op, names, taken_functions, taken_model_names),
+    )
   }
   {
     module_name,

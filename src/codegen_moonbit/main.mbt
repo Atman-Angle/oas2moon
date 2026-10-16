@@ -888,7 +888,7 @@ fn pascal_from_snake(snake : String) -> String {
 
 ///|
 fn response_enum_name(op : OperationIr) -> String {
-  pascal_from_snake(op.fn_name) + "Response"
+  op.response_name
 }
 
 ///|
@@ -908,15 +908,6 @@ fn int_list_to_moon(ints : Array[Int]) -> String {
   let parts : Array[String] = []
   for n in ints {
     parts.push(n.to_string())
-  }
-  "[" + join_strings(parts, ", ") + "]"
-}
-
-///|
-fn string_array_to_moon(strs : Array[String]) -> String {
-  let parts : Array[String] = []
-  for s in strs {
-    parts.push(quoted(s))
   }
   "[" + join_strings(parts, ", ") + "]"
 }
@@ -951,7 +942,17 @@ fn build_path_expr(op : OperationIr) -> String {
         }
       }
       if found.length() > 0 {
-        parts.push("encode_path_value(" + found + ".to_string())")
+        let mut array = false
+        for p in op.parameters {
+          if p.wire_name == wire_name && p.type_ref.kind == "array" {
+            array = true
+          }
+        }
+        if array {
+          parts.push("encode_path_array(" + found + ".map(v => v.to_string()))")
+        } else {
+          parts.push("encode_path_value(" + found + ".to_string())")
+        }
       } else {
         parts.push(quoted("{" + wire_name + "}"))
       }
@@ -984,7 +985,7 @@ fn variant_name(v : ResponseVariant) -> String {
 }
 
 ///|
-fn emit_operation(out : StringBuilder, op : OperationIr) -> Unit {
+fn emit_operation(out : StringBuilder, op : OperationIr, api : ApiIr) -> Unit {
   line(out, "///|")
   line(out, "/// `" + op.http_method + " " + op.path + "`")
   line(out, "pub async fn Client::" + op.fn_name + "(")
@@ -1048,10 +1049,46 @@ fn emit_operation(out : StringBuilder, op : OperationIr) -> Unit {
   }
   line(out, ") -> " + ret_type + " raise SdkError {")
   if op.security.length() > 0 {
+    let groups : Array[String] = []
+    for group in op.security {
+      let schemes : Array[String] = []
+      for name in group {
+        let mut kind = name
+        let mut key = ""
+        let mut loc = ""
+        for scheme in api.auth_schemes {
+          if scheme.name == name {
+            kind = scheme.kind
+            key = scheme.key_name.unwrap_or("")
+            loc = scheme.location.unwrap_or("")
+          }
+        }
+        schemes.push(
+          "(" +
+          quoted(name) +
+          ", " +
+          quoted(kind) +
+          ", " +
+          quoted(key) +
+          ", " +
+          quoted(loc) +
+          ")",
+        )
+      }
+      groups.push("[" + join_strings(schemes, ", ") + "]")
+    }
+    line(
+      out,
+      "  let requirements = select_security(self.config, [" +
+      join_strings(groups, ", ") +
+      "], operation_id=" +
+      quoted(op.operation_id) +
+      ")",
+    )
     line(
       out,
       "  let headers = auth_headers(self.config, " +
-      string_array_to_moon(op.security) +
+      "requirements" +
       ", operation_id=" +
       quoted(op.operation_id) +
       ")",
@@ -1061,31 +1098,7 @@ fn emit_operation(out : StringBuilder, op : OperationIr) -> Unit {
   }
   for p in op.parameters {
     if p.location is HeaderLoc {
-      let mn = escape_moonbit(p.name)
-      let wire = quoted(p.wire_name)
-      match p.presence {
-        "required" => line(out, "  headers[" + wire + "] = " + mn)
-        "required_nullable" => {
-          line(out, "  match " + mn + " {")
-          line(out, "    Some(v) => headers[" + wire + "] = v")
-          line(out, "    None => ()")
-          line(out, "  }")
-        }
-        "optional" => {
-          line(out, "  match " + mn + " {")
-          line(out, "    Some(v) => headers[" + wire + "] = v")
-          line(out, "    None => ()")
-          line(out, "  }")
-        }
-        "optional_nullable" => {
-          line(out, "  match " + mn + " {")
-          line(out, "    Unset => ()")
-          line(out, "    Null => ()")
-          line(out, "    Value(v) => headers[" + wire + "] = v")
-          line(out, "  }")
-        }
-        _ => abort("validated parameter has an unsupported presence")
-      }
+      emit_wire_parameter(out, p, false)
     }
   }
   if has_body {
@@ -1102,54 +1115,18 @@ fn emit_operation(out : StringBuilder, op : OperationIr) -> Unit {
       None => ()
     }
   }
-  let has_query = {
-    let mut found = false
-    for p in op.parameters {
-      if p.location is QueryLoc {
-        found = true
-      }
-    }
-    found
+  let has_joined_query = op.parameters.any(p => {
+    p.location == QueryLoc && p.type_ref.kind == "array" && !p.explode
+  })
+  if has_joined_query {
+    line(out, "  let joined_query : Array[(String, Array[String])] = []")
   }
+  let has_query = op.parameters.any(p => p.location == QueryLoc)
   if has_query {
     line(out, "  let query : Array[(String, String)] = []")
     for p in op.parameters {
       if p.location is QueryLoc {
-        let mn = escape_moonbit(p.name)
-        let wire = quoted(p.wire_name)
-        match p.presence {
-          "required" =>
-            line(out, "  query.push((" + wire + ", " + mn + ".to_string()))")
-          "required_nullable" => {
-            line(out, "  match " + mn + " {")
-            line(
-              out,
-              "    Some(v) => query.push((" + wire + ", v.to_string()))",
-            )
-            line(out, "    None => ()")
-            line(out, "  }")
-          }
-          "optional" => {
-            line(out, "  match " + mn + " {")
-            line(
-              out,
-              "    Some(v) => query.push((" + wire + ", v.to_string()))",
-            )
-            line(out, "    None => ()")
-            line(out, "  }")
-          }
-          "optional_nullable" => {
-            line(out, "  match " + mn + " {")
-            line(out, "    Unset => ()")
-            line(out, "    Null => ()")
-            line(
-              out,
-              "    Value(v) => query.push((" + wire + ", v.to_string()))",
-            )
-            line(out, "  }")
-          }
-          _ => abort("validated parameter has an unsupported presence")
-        }
+        emit_wire_parameter(out, p, true)
       }
     }
   }
@@ -1160,7 +1137,7 @@ fn emit_operation(out : StringBuilder, op : OperationIr) -> Unit {
     line(
       out,
       "  for pair in auth_query(self.config, " +
-      string_array_to_moon(op.security) +
+      "requirements" +
       ", operation_id=" +
       quoted(op.operation_id) +
       ") {",
@@ -1186,6 +1163,9 @@ fn emit_operation(out : StringBuilder, op : OperationIr) -> Unit {
     if sends_query {
       with_args += ", query~"
     }
+    if has_joined_query {
+      with_args += ", joined_query~"
+    }
     with_args += ", headers~"
     line(
       out,
@@ -1200,6 +1180,9 @@ fn emit_operation(out : StringBuilder, op : OperationIr) -> Unit {
       path_expr
     if sends_query {
       req_str += ", query~"
+    }
+    if has_joined_query {
+      req_str += ", joined_query~"
     }
     req_str += ", headers~"
     if has_body {
@@ -1234,53 +1217,15 @@ fn emit_operation(out : StringBuilder, op : OperationIr) -> Unit {
     ")",
   )
   match op.response_strategy {
-    SingleResult(tr) => {
-      let tname = render_type(tr)
-      match tr.kind {
-        "scalar" =>
-          match tr.name {
-            Some("Json") => {
-              line(out, "  @json.parse(response.body) catch {")
-              line(
-                out,
-                "    _ => raise Decode(" +
-                quoted(op.operation_id) +
-                ", \"failed to parse JSON response\")",
-              )
-              line(out, "  }")
-            }
-            Some(_) =>
-              line(
-                out,
-                "  (decode_json(response, operation_id=" +
-                quoted(op.operation_id) +
-                ") : " +
-                tname +
-                ")",
-              )
-            None => abort("validated type is missing its name")
-          }
-        "named" =>
-          line(
-            out,
-            "  (decode_json(response, operation_id=" +
-            quoted(op.operation_id) +
-            ") : " +
-            tname +
-            ")",
-          )
-        "array" =>
-          line(
-            out,
-            "  (decode_json(response, operation_id=" +
-            quoted(op.operation_id) +
-            ") : " +
-            tname +
-            ")",
-          )
-        _ => abort("validated type has an unsupported kind")
-      }
-    }
+    SingleResult(tr) =>
+      line(
+        out,
+        "  (decode_json(response, operation_id=" +
+        quoted(op.operation_id) +
+        ") : " +
+        render_type(tr) +
+        ")",
+      )
     UnitResult => line(out, "  ()")
     NoContent => line(out, "  ()")
     ResponseEnum(variants) => {
@@ -1288,6 +1233,14 @@ fn emit_operation(out : StringBuilder, op : OperationIr) -> Unit {
       for v in variants {
         line(out, "    " + v.status.to_string() + " => {")
         let tname = render_type(v.type_ref)
+        if tname == "Unit" {
+          line(
+            out,
+            "      " + response_enum_name(op) + "::" + variant_name(v) + "(())",
+          )
+          line(out, "    }")
+          continue
+        }
         line(
           out,
           "      " + response_enum_name(op) + "::" + variant_name(v) + "(",
@@ -1366,7 +1319,15 @@ fn emit_client(api : ApiIr) -> String {
   )
   line(out, "/// generated methods but replays an in-memory response instead.")
   line(out, "pub fn Client::new(")
-  line(out, "  base_url? : String = \"\",")
+  let mut default_url = ""
+  for server in api.servers {
+    if default_url == "" &&
+      (server.has_prefix("http://") || server.has_prefix("https://")) &&
+      !server.contains("{") {
+      default_url = server
+    }
+  }
+  line(out, "  base_url? : String = " + quoted(default_url) + ",")
   line(out, "  bearer_token? : String,")
   line(out, "  basic_username? : String,")
   line(out, "  basic_password? : String,")
@@ -1395,7 +1356,7 @@ fn emit_client(api : ApiIr) -> String {
   line(out, "}")
   line(out, "")
   for op in api.operations {
-    emit_operation(out, op)
+    emit_operation(out, op, api)
   }
   out.to_string().trim_end(chars="\n").to_owned() + "\n"
 }
@@ -1495,5 +1456,78 @@ fn main raise {
   @fs.write_string_to_file(path_join(args[2], "models.mbt"), emit_models(api))
   if api_has_operations(api) {
     @fs.write_string_to_file(path_join(args[2], "client.mbt"), emit_client(api))
+  }
+}
+
+///|
+fn emit_wire_parameter(
+  out : StringBuilder,
+  p : ParameterIr,
+  query : Bool,
+) -> Unit {
+  let mn = escape_moonbit(p.name)
+  let optional = p.presence != "required"
+  let value = if optional { "v" } else { mn }
+  if optional {
+    line(out, "  match " + mn + " {")
+    if p.presence == "optional_nullable" {
+      line(out, "    Unset | Null => ()")
+      line(out, "    Value(v) => {")
+    } else {
+      line(out, "    None => ()")
+      line(out, "    Some(v) => {")
+    }
+  }
+  let wire = quoted(p.wire_name)
+  if query && p.type_ref.kind == "array" && p.explode {
+    line(
+      out,
+      "    for item in " +
+      value +
+      " { query.push((" +
+      wire +
+      ", " +
+      parameter_scalar_wire(p.type_ref.item.unwrap(), "item") +
+      ")) }",
+    )
+  } else if query && p.type_ref.kind == "array" {
+    line(
+      out,
+      "    joined_query.push((" +
+      wire +
+      ", " +
+      value +
+      ".map(item => " +
+      parameter_scalar_wire(p.type_ref.item.unwrap(), "item") +
+      ")))",
+    )
+  } else {
+    let expr = if p.type_ref.kind == "array" {
+      "encode_header_array(" +
+      value +
+      ".map(item => " +
+      parameter_scalar_wire(p.type_ref.item.unwrap(), "item") +
+      "))"
+    } else {
+      parameter_scalar_wire(p.type_ref, value)
+    }
+    if query {
+      line(out, "    query.push((" + wire + ", " + expr + "))")
+    } else {
+      line(out, "    headers[" + wire + "] = " + expr)
+    }
+  }
+  if optional {
+    line(out, "    }")
+    line(out, "  }")
+  }
+}
+
+///|
+fn parameter_scalar_wire(type_ref : TypeRef, value : String) -> String {
+  if type_ref.kind == "named" {
+    value + ".to_wire()"
+  } else {
+    value + ".to_string()"
   }
 }

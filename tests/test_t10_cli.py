@@ -135,12 +135,13 @@ def test_success_yaml() -> None:
 
 
 def test_unsupported_spec() -> None:
-    """oneOf is unsupported; the CLI should still run without crashing."""
+    """oneOf is unsupported; the CLI must reject before emission."""
     out_dir = _out("unsupported")
     r = run_cli("generate", str(FIXTURES_DIR / "unsupported" / "oneof.json"),
                 "--module", "test", "--out", str(out_dir))
-    assert r.returncode == 0, f"CLI failed:\n{r.stderr}"
-    assert (out_dir / "models.mbt").is_file()
+    assert r.returncode == 4, f"CLI failed:\n{r.stderr}"
+    assert "#/components/schemas/Choice/oneOf" in r.stderr
+    assert not (out_dir / "models.mbt").exists()
 
 
 def test_determinism() -> None:

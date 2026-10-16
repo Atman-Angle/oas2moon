@@ -246,7 +246,9 @@ def cmd_generate(args: argparse.Namespace) -> int:
             if detail:
                 print(detail, file=sys.stderr)
             print(_step_label(step, False), file=sys.stderr)
-            return 5
+            return 4 if r2.returncode == 4 else 5
+        if r2.stdout.strip():
+            print(r2.stdout, file=sys.stderr)
         canonical_size = canonical_path.stat().st_size
         print(_step_label(step, True), file=sys.stderr)
 

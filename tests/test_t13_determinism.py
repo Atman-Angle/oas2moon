@@ -348,6 +348,12 @@ def test_spec_generation_is_byte_deterministic(spec: Path) -> None:
         "generate", str(spec), "--module", module, "--out", str(out_a),
         "--ir-out", str(ir_a),
     )
+    if spec.parent.name == "unsupported":
+        second = run_cli("generate", str(spec), "--module", module, "--out", str(out_b))
+        assert first.returncode == second.returncode == 4
+        assert first.stderr == second.stderr
+        assert not ir_a.exists() and not ir_b.exists()
+        return
     assert first.returncode == 0, f"{label}: generation 1 failed:\n{first.stderr}"
     second = run_cli(
         "generate", str(spec), "--module", module, "--out", str(out_b),
@@ -476,6 +482,11 @@ def test_object_key_order_does_not_change_output(spec: Path) -> None:
         "generate", str(spec), "--module", module, "--out", str(out_original),
         "--ir-out", str(ir_original),
     )
+    if spec.parent.name == "unsupported":
+        second = run_cli("generate", str(reordered), "--module", module, "--out", str(out_reordered))
+        assert first.returncode == second.returncode == 4
+        assert first.stderr == second.stderr
+        return
     assert first.returncode == 0, f"{label}: original generation failed:\n{first.stderr}"
     second = run_cli(
         "generate", str(reordered), "--module", module, "--out", str(out_reordered),
@@ -603,6 +614,13 @@ def test_ir_ordering_is_independent_of_normalized_key_order(spec: Path) -> None:
 
     ir_original = work / "ir-original.json"
     ir_reversed = work / "ir-reversed.json"
+    if spec.parent.name == "unsupported":
+        first = run_moon_package(CORE_DIR, str(normalized), str(ir_original), module)
+        second = run_moon_package(CORE_DIR, str(reversed_model), str(ir_reversed), module)
+        assert first.returncode == second.returncode == 4
+        assert first.stdout == second.stdout
+        assert not ir_original.exists() and not ir_reversed.exists()
+        return
     for source, target in ((normalized, ir_original), (reversed_model, ir_reversed)):
         lowered = run_moon_package(CORE_DIR, str(source), str(target), module)
         assert lowered.returncode == 0, (

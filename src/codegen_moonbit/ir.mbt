@@ -61,6 +61,8 @@ pub struct ParameterIr {
   required : Bool
   nullable : Bool
   presence : String
+  style : String
+  explode : Bool
 } derive(Eq, Debug)
 
 ///|
@@ -104,6 +106,7 @@ pub struct AuthSchemeIr {
 pub struct OperationIr {
   operation_id : String
   fn_name : String
+  response_name : String
   http_method : String
   path : String
   tags : Array[String]
@@ -113,7 +116,7 @@ pub struct OperationIr {
   success_responses : Array[ResponseIr]
   error_responses : Array[ResponseIr]
   response_strategy : ResponseStrategy
-  security : Array[String]
+  security : Array[Array[String]]
   source_pointer : String
 } derive(Eq, Debug)
 
@@ -241,7 +244,8 @@ fn is_known_scalar(name : String) -> Bool {
   name == "Int" ||
   name == "Int64" ||
   name == "Double" ||
-  name == "Json"
+  name == "Json" ||
+  name == "Unit"
 }
 
 ///|
@@ -502,7 +506,26 @@ fn parse_parameter(value : Json, location : String) -> ParameterIr raise {
   }
   let type_value = require_field(fields, "type", location)
   let type_ref = parse_type_ref(type_value, location + ".type")
-  { name, wire_name, location: loc, type_ref, required, nullable, presence, }
+  let style = match fields.get("style") {
+    Some(v) => require_string(v, location + ".style")
+    None => if loc == QueryLoc { "form" } else { "simple" }
+  }
+  let explode = match fields.get("explode") {
+    Some(True) => true
+    Some(False) => false
+    _ => style == "form"
+  }
+  {
+    name,
+    wire_name,
+    location: loc,
+    type_ref,
+    required,
+    nullable,
+    presence,
+    style,
+    explode,
+  }
 }
 
 ///|
@@ -628,6 +651,9 @@ fn parse_operation(
   let fields = require_object(value, location)
   let operation_id = require_string_field(fields, "operation_id", location)
   let fn_name = require_string_field(fields, "fn_name", location)
+  let response_name = optional_string_field(fields, "response_name", location).unwrap_or(
+    pascal_from_snake(fn_name) + "Response",
+  )
   let http_method = require_string_field(fields, "http_method", location)
   let path = require_string_field(fields, "path", location)
   let tags = match fields.get("tags") {
@@ -714,7 +740,19 @@ fn parse_operation(
     _ => ()
   }
   let security = match fields.get("security") {
-    Some(sv) => parse_strings_array(sv, location + ".security")
+    Some(sv) => {
+      let groups : Array[Array[String]] = []
+      let items = require_array(sv, location + ".security")
+      // Accept legacy flat canonical IR as one AND requirement.
+      if items.length() > 0 && items[0] is String(_) {
+        groups.push(parse_strings_array(sv, location + ".security"))
+      } else {
+        for group in items {
+          groups.push(parse_strings_array(group, location + ".security"))
+        }
+      }
+      groups
+    }
     None => []
   }
   let source_pointer = match fields.get("source_pointer") {
@@ -724,6 +762,7 @@ fn parse_operation(
   {
     operation_id,
     fn_name,
+    response_name,
     http_method,
     path,
     tags,

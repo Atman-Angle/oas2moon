@@ -50,3 +50,18 @@ For unsupported semantics, generation must stop with a deterministic diagnostic;
 - Arbitrary non-JSON response decoding. Declared JSON responses with a non-JSON wire media type are rejected explicitly rather than decoded.
 
 See [acceptance evidence](ACCEPTANCE.md) and the [Petstore demo](DEMO_SCRIPT.md) for the exact release evidence.
+
+## Generator correctness regression coverage
+
+`tests/test_generator_regressions.py` exercises the real CLI and generated SDK
+against a local HTTP server: inline objects, colliding component and operation
+names, security alternatives, query arrays, typed headers, mixed body/204
+responses, and declared server defaults. Inline objects (including nested fields,
+array items, request bodies and responses) currently use `Json` with an explicit
+`schema.json_fallback` warning; named component objects retain generated structs.
+Unsupported keyword diagnostics stop lowering and the CLI returns exit code 4.
+
+Canonical IR preserves `style` and `explode`, security alternatives as arrays of
+scheme names, and the allocated `response_name`. No-body response enum variants
+carry `Unit`. The codegen reader accepts legacy flat security arrays as a single
+AND group. Joined query arrays encode each item before inserting comma separators.

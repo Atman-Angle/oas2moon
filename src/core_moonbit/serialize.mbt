@@ -125,6 +125,17 @@ fn parameter_to_json(p : ParameterIr) -> Json {
       ("required", Json::boolean(p.required)),
       ("nullable", Json::boolean(p.nullable)),
       (
+        "style",
+        Json::string(
+          match p.style {
+            Simple => "simple"
+            Form => "form"
+            UnsupportedStyle(s) => s
+          },
+        ),
+      ),
+      ("explode", Json::boolean(p.explode)),
+      (
         "presence",
         Json::string(
           presence_to_string(compute_presence(p.required, p.nullable)),
@@ -271,6 +282,7 @@ fn operation_to_json(op : OperationIr) -> Json {
       ("http_method", Json::string(method_to_string(op.http_method))),
       ("path", Json::string(op.path)),
       ("fn_name", Json::string(op.fn_name)),
+      ("response_name", Json::string(op.response_name)),
       ("tags", strings_to_json(op.tags)),
       ("parameters", parameters_to_json(op.parameters)),
       ("request_body", request_body_to_json(op.request_body)),
@@ -278,7 +290,7 @@ fn operation_to_json(op : OperationIr) -> Json {
       ("success_responses", responses_to_json(op.success_responses)),
       ("error_responses", responses_to_json(op.error_responses)),
       ("response_strategy", strategy_to_json(op.response_strategy)),
-      ("security", strings_to_json(op.security)),
+      ("security", Json::array(op.security.map(strings_to_json))),
       ("source_pointer", Json::string(op.source.pointer)),
     ]),
   )

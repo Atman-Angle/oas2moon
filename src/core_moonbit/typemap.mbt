@@ -63,16 +63,19 @@ pub fn ref_target(ref_path : String) -> String {
 
 ///|
 /// Map a Frontend Model schema JSON node to a TypeRef.
-pub fn map_schema(schema : Json) -> TypeRef {
+pub fn map_schema(
+  schema : Json,
+  names? : Map[String, String] = Map([]),
+) -> TypeRef {
   let ref_path = text(get(schema, "ref"))
   if ref_path != "" {
-    let name = ref_target(ref_path)
+    let name = names.get(ref_path).unwrap_or(ref_target(ref_path))
     return Named(name)
   }
   let kind = text(get(schema, "kind"))
   if kind == "array" {
     let items = get(schema, "items")
-    return Array(map_schema(items))
+    return Array(map_schema(items, names~))
   }
   if kind == "integer" {
     let fmt = text(get(schema, "format"))
@@ -87,7 +90,7 @@ pub fn map_schema(schema : Json) -> TypeRef {
   if kind == "boolean" {
     return Scalar("Bool")
   }
-  if kind == "any" {
+  if kind == "any" || kind == "object" {
     return Scalar("Json")
   }
   Scalar("String")
