@@ -64,6 +64,11 @@ fn render_type(type_ref : TypeRef) -> String {
         Some(item) => "Array[" + render_type(item) + "]"
         None => abort("validated array type is missing its item")
       }
+    "nullable" =>
+      match type_ref.item {
+        Some(item) => render_type(item) + "?"
+        None => abort("validated nullable type is missing its item")
+      }
     _ => abort("validated type has an unsupported kind")
   }
 }
@@ -81,6 +86,11 @@ fn contains_int64(type_ref : TypeRef) -> Bool {
         Some(item) => contains_int64(item)
         None => abort("validated array type is missing its item")
       }
+    "nullable" =>
+      match type_ref.item {
+        Some(item) => contains_int64(item)
+        None => abort("validated nullable type is missing its item")
+      }
     _ => false
   }
 }
@@ -88,6 +98,27 @@ fn contains_int64(type_ref : TypeRef) -> Bool {
 ///|
 fn is_int64_scalar(type_ref : TypeRef) -> Bool {
   type_ref.kind == "scalar" && type_ref.name == Some("Int64")
+}
+
+///|
+fn contains_nullable(type_ref : TypeRef) -> Bool {
+  match type_ref.kind {
+    "nullable" => true
+    "array" =>
+      match type_ref.item {
+        Some(item) => contains_nullable(item)
+        None => false
+      }
+    _ => false
+  }
+}
+
+///|
+/// An array needs a generated element-wise codec when its items contain Int64
+/// (core reads it as a string) or a nullable item (core's Option codec uses a
+/// `[value]` wrapper instead of the OpenAPI bare-value/null wire form).
+fn needs_codec(type_ref : TypeRef) -> Bool {
+  contains_int64(type_ref) || contains_nullable(type_ref)
 }
 
 ///|
@@ -116,30 +147,40 @@ fn resolve_type(type_ref : TypeRef, api : ApiIr) -> TypeRef {
 
 ///|
 /// Build the response-body decode expression for a result type. Aliases are
-/// resolved so an Int64 scalar uses decode_int64 and an Int64 array uses the
-/// generated array decoder through a FromJson wrapper; other types decode via
-/// the transparent typealias or the named struct codec.
+/// resolved so Int/Int64/Double scalars use the strict runtime decoders (core
+/// from_json truncates Int fractions and accepts Double "NaN" strings) and an
+/// Int64 array uses the generated array decoder through a FromJson wrapper;
+/// other types decode via the transparent typealias or the named struct codec.
 fn response_decode_expr(
   type_ref : TypeRef,
   api : ApiIr,
   operation_id : String,
 ) -> String {
   let resolved = resolve_type(type_ref, api)
+  let call = "response, operation_id=" + quoted(operation_id)
   if is_int64_scalar(resolved) {
-    "decode_int64(response, operation_id=" + quoted(operation_id) + ")"
-  } else if resolved.kind == "array" && contains_int64(resolved) {
-    "(decode_json(response, operation_id=" +
-    quoted(operation_id) +
-    ") : I64Resp_" +
-    int64_codec_suffix(resolved) +
-    ").value"
+    "decode_int64(" + call + ")"
+  } else if resolved.kind == "scalar" && resolved.name == Some("Int") {
+    "decode_int(" + call + ")"
+  } else if resolved.kind == "scalar" && resolved.name == Some("Double") {
+    "decode_double(" + call + ")"
+  } else if resolved.kind == "array" && needs_codec(resolved) {
+    "(decode_json(" + call + ") : RespArr_" + codec_suffix(resolved) + ").value"
   } else {
-    "(decode_json(response, operation_id=" +
-    quoted(operation_id) +
-    ") : " +
-    render_type(type_ref) +
-    ")"
+    "(decode_json(" + call + ") : " + render_type(type_ref) + ")"
   }
+}
+
+///|
+/// Encode a request body through the generated element-wise codec rather than
+/// core ToJson, which mis-encodes Int64 (as a string) and nullable items (as a
+/// `[value]` wrapper). Aliases are resolved to their underlying type.
+fn request_body_encode(
+  type_ref : TypeRef,
+  varname : String,
+  api : ApiIr,
+) -> String {
+  encode_expr(resolve_type(type_ref, api), varname) + ".stringify()"
 }
 
 ///|
@@ -155,19 +196,29 @@ fn field_moon_type(field : FieldIr) -> String {
 }
 
 ///|
-fn int64_codec_suffix(type_ref : TypeRef) -> String {
+fn codec_suffix(type_ref : TypeRef) -> String {
   match type_ref.kind {
     "scalar" =>
       match type_ref.name {
-        Some("Int64") => "int64"
-        _ => abort("Int64 codec requested for a non-Int64 scalar")
+        Some(name) => name.to_lower()
+        None => abort("validated scalar type is missing its name")
+      }
+    "named" =>
+      match type_ref.name {
+        Some(name) => "named_" + name
+        None => abort("validated named type is missing its name")
       }
     "array" =>
       match type_ref.item {
-        Some(item) => "array_" + int64_codec_suffix(item)
+        Some(item) => "array_" + codec_suffix(item)
         None => abort("validated array type is missing its item")
       }
-    _ => abort("Int64 codec requested for a type without Int64")
+    "nullable" =>
+      match type_ref.item {
+        Some(item) => "nullable_" + codec_suffix(item)
+        None => abort("validated nullable type is missing its item")
+      }
+    _ => abort("codec requested for an unsupported type kind")
   }
 }
 
@@ -182,10 +233,17 @@ fn encode_expr(type_ref : TypeRef, value : String) -> String {
       }
     "named" => "@json.to_json(" + value + ")"
     "array" =>
-      if contains_int64(type_ref) {
-        "__encode_" + int64_codec_suffix(type_ref) + "(" + value + ")"
+      if needs_codec(type_ref) {
+        "__encode_" + codec_suffix(type_ref) + "(" + value + ")"
       } else {
         "@json.to_json(" + value + ")"
+      }
+    "nullable" =>
+      match type_ref.item {
+        Some(item) =>
+          "(match " + value + " { None => Json::null(); Some(__opt_v) => " +
+          encode_expr(item, "__opt_v") + " })"
+        None => abort("validated nullable type is missing its item")
       }
     _ => abort("validated type has an unsupported kind")
   }
@@ -204,9 +262,9 @@ fn decode_expr(type_ref : TypeRef, value : String, path : String) -> String {
       }
     "named" => "@json.from_json(" + value + ", path=" + path + ")"
     "array" =>
-      if contains_int64(type_ref) {
+      if needs_codec(type_ref) {
         "__decode_" +
-        int64_codec_suffix(type_ref) +
+        codec_suffix(type_ref) +
         "(" +
         value +
         ", " +
@@ -215,12 +273,19 @@ fn decode_expr(type_ref : TypeRef, value : String, path : String) -> String {
       } else {
         "@json.from_json(" + value + ", path=" + path + ")"
       }
+    "nullable" =>
+      match type_ref.item {
+        Some(item) =>
+          "(match " + value + " { Null => None; _ => Some(" +
+          decode_expr(item, value, path) + ") })"
+        None => abort("validated nullable type is missing its item")
+      }
     _ => abort("validated type has an unsupported kind")
   }
 }
 
 ///|
-fn collect_int64_helpers(
+fn collect_array_codecs(
   type_ref : TypeRef,
   seen : Map[String, Bool],
   helpers : Array[TypeRef],
@@ -231,15 +296,24 @@ fn collect_int64_helpers(
         Some(value) => value
         None => abort("validated array type is missing its item")
       }
-      if contains_int64(item) {
-        collect_int64_helpers(item, seen, helpers)
+      if needs_codec(item) {
+        collect_array_codecs(item, seen, helpers)
       }
-      if contains_int64(type_ref) {
-        let suffix = int64_codec_suffix(type_ref)
+      if needs_codec(type_ref) {
+        let suffix = codec_suffix(type_ref)
         if seen.get(suffix) is None {
           seen[suffix] = true
           helpers.push(type_ref)
         }
+      }
+    }
+    "nullable" => {
+      let item = match type_ref.item {
+        Some(value) => value
+        None => abort("validated nullable type is missing its item")
+      }
+      if needs_codec(item) {
+        collect_array_codecs(item, seen, helpers)
       }
     }
     _ => ()
@@ -289,15 +363,15 @@ fn emit_int64_helpers(out : StringBuilder, api : ApiIr) -> Unit {
       EnumModel(_) => ()
       StructModel(value) =>
         for field in value.fields {
-          collect_int64_helpers(field.type_ref, seen, helpers)
+          collect_array_codecs(field.type_ref, seen, helpers)
         }
-      AliasModel(value) => collect_int64_helpers(value.type_ref, seen, helpers)
+      AliasModel(value) => collect_array_codecs(value.type_ref, seen, helpers)
     }
   }
-  // A top-level response whose resolved type is an array containing scalar
-  // Int64 must use the generated array decoder: core from_json would read the
-  // number as a string. Collect these so the helper and a FromJson wrapper
-  // are both emitted.
+  // A top-level response whose resolved type is an array needing a custom
+  // element codec (Int64 or nullable items) must use the generated array
+  // decoder: core from_json misreads Int64 numbers and nullable wire values.
+  // Collect these so the helper and a FromJson wrapper are both emitted.
   let resp_types : Array[TypeRef] = []
   let resp_seen : Map[String, Bool] = Map([])
   for op in api.operations {
@@ -312,18 +386,27 @@ fn emit_int64_helpers(out : StringBuilder, api : ApiIr) -> Unit {
     }
     for tr in response_types {
       let resolved = resolve_type(tr, api)
-      if resolved.kind == "array" && contains_int64(resolved) {
-        collect_int64_helpers(resolved, seen, helpers)
-        let suffix = int64_codec_suffix(resolved)
+      if resolved.kind == "array" && needs_codec(resolved) {
+        collect_array_codecs(resolved, seen, helpers)
+        let suffix = codec_suffix(resolved)
         if resp_seen.get(suffix) is None {
           resp_seen[suffix] = true
           resp_types.push(resolved)
         }
       }
     }
+    // Request bodies need the generated encode helper too (no FromJson wrapper).
+    match op.request_body {
+      Some(body) =>
+        match body.type_ref {
+          Some(tr) => collect_array_codecs(resolve_type(tr, api), seen, helpers)
+          None => ()
+        }
+      None => ()
+    }
   }
   for type_ref in helpers {
-    let suffix = int64_codec_suffix(type_ref)
+    let suffix = codec_suffix(type_ref)
     let rendered = render_type(type_ref)
     let item = match type_ref.item {
       Some(value) => value
@@ -367,9 +450,9 @@ fn emit_int64_helpers(out : StringBuilder, api : ApiIr) -> Unit {
     line(out, "")
   }
   for type_ref in resp_types {
-    let suffix = int64_codec_suffix(type_ref)
+    let suffix = codec_suffix(type_ref)
     let rendered = render_type(type_ref)
-    let wname = "I64Resp_" + suffix
+    let wname = "RespArr_" + suffix
     line(out, "///|")
     line(out, "pub(all) struct " + wname + " {")
     line(out, "  value : " + rendered)
@@ -1278,9 +1361,17 @@ fn emit_operation(out : StringBuilder, op : OperationIr, api : ApiIr) -> Unit {
       with_args += ", joined_query~"
     }
     with_args += ", headers~"
+    let body_enc = match op.request_body {
+      Some(body) =>
+        match body.type_ref {
+          Some(tr) => request_body_encode(tr, "v", api)
+          None => "encode_json(v)"
+        }
+      None => "encode_json(v)"
+    }
     line(
       out,
-      "    Some(v) => Request::new(" + with_args + ", body=encode_json(v))",
+      "    Some(v) => Request::new(" + with_args + ", body=" + body_enc + ")",
     )
     line(out, "    None => Request::new(" + with_args + ")")
     line(out, "  }")
@@ -1300,9 +1391,9 @@ fn emit_operation(out : StringBuilder, op : OperationIr, api : ApiIr) -> Unit {
       match op.request_body {
         Some(body) =>
           match body.type_ref {
-            Some(_) =>
+            Some(tr) =>
               if body.required {
-                req_str += ", body=encode_json(" + body_name + ")"
+                req_str += ", body=" + request_body_encode(tr, body_name, api)
               }
             None => ()
           }

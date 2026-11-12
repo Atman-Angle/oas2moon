@@ -92,3 +92,19 @@ array decoder so its elements keep full Int64 precision. The same file's
 array component and primitive aliases decode legal wire over a local HTTP
 server; previously these compiled but failed to decode (`compile_pass` masked
 the semantic defect).
+
+A red-team pass closed four further core defects, each locked by an independent
+consumer regression in `tests/test_acceptance_regressions.py`:
+
+- Top-level `Int` and `Double` responses decode strictly: a fractional or
+  out-of-range `Int`, and a non-finite or string `Double` (e.g. `"NaN"`), raise a
+  structured decode error instead of being truncated or accepted by the core
+  codec (`test_top_level_scalar_strict_decode`).
+- A component whose name pascalizes to a generated, runtime, or core type
+  (`Client`, `Response`, `String`, `Config`, `Presence`, …) is renamed instead of
+  emitting a duplicate type that fails `moon check`
+  (`test_component_name_collisions_compile`).
+- Nullable array items decode `null → None` and a bare value → `Some`, and
+  encode back to the OpenAPI bare-value/null wire form (not MoonBit's `[value]`
+  Option convention), for `Int`, `String`, and `Int64` elements; request bodies
+  use the same generated encoder (`test_nullable_array_items`).

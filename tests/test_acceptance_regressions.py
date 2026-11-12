@@ -12,6 +12,7 @@ These cases fail on the pre-fix candidate 563702a (silent acceptance, empty
 structs, codegen panic, or a MoonBit panic) and pass after the remediation.
 """
 import json
+import shutil
 import subprocess
 import sys
 import threading
@@ -36,6 +37,8 @@ def generate(spec, label):
     work.mkdir(parents=True, exist_ok=True)
     source, out = work / "spec.json", work / "sdk"
     source.write_text(json.dumps(spec), encoding="utf-8")
+    if out.exists():
+        shutil.rmtree(out)
     result = run([
         sys.executable, str(ROOT / "oas2moon.py"), "generate", str(source),
         "--module", "acceptance/sdk", "--out", str(out),
@@ -340,6 +343,189 @@ async test "component aliases decode legal wire" {
             checked = run(cmd, out)
             assert checked.returncode == 0, checked.stdout + checked.stderr
         assert len(seen) == len(bodies), seen
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
+# ── red-team BUG-1/2: top-level Int/Double must decode strictly ───────────
+
+def test_top_level_scalar_strict_decode():
+    """Core Int::from_json truncates fractions and Double::from_json accepts the
+    string "NaN"; top-level responses must reject both. Proven over local HTTP.
+    """
+    bodies = {
+        "/int_frac": b"1.5", "/int_over": b"2147483648", "/int_ok": b"42",
+        "/dbl_nan": b'"NaN"', "/dbl_inf": b'"Infinity"', "/dbl_ok": b"3.5",
+    }
+    seen = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_GET(self):
+            seen.append(self.path)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(bodies.get(self.path, b"null"))
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        integer = {"type": "integer"}
+        double = {"type": "number", "format": "double"}
+        doc = spec("Scalars", {
+            "/int_frac": {"get": op(operation_id="getIntFrac", responses={"200": json_response(integer)})},
+            "/int_over": {"get": op(operation_id="getIntOver", responses={"200": json_response(integer)})},
+            "/int_ok": {"get": op(operation_id="getIntOk", responses={"200": json_response(integer)})},
+            "/dbl_nan": {"get": op(operation_id="getDblNan", responses={"200": json_response(double)})},
+            "/dbl_inf": {"get": op(operation_id="getDblInf", responses={"200": json_response(double)})},
+            "/dbl_ok": {"get": op(operation_id="getDblOk", responses={"200": json_response(double)})},
+        })
+        doc["servers"] = [{"url": "http://127.0.0.1:%d" % server.server_port}]
+        result, out = generate(doc, "strict-scalars")
+        assert result.returncode == 0, result.stderr
+        (out / "s_wbtest.mbt").write_text('''///|
+async test "strict top-level scalars" {
+  let c = Client::new()
+  try { ignore(c.get_int_frac()); fail("fractional int accepted") } catch { Decode(_, _) => (); _ => fail("wrong error") }
+  try { ignore(c.get_int_over()); fail("overflow int accepted") } catch { Decode(_, _) => (); _ => fail("wrong error") }
+  assert_eq(c.get_int_ok(), 42)
+  try { ignore(c.get_dbl_nan()); fail("NaN string accepted") } catch { Decode(_, _) => (); _ => fail("wrong error") }
+  try { ignore(c.get_dbl_inf()); fail("Infinity string accepted") } catch { Decode(_, _) => (); _ => fail("wrong error") }
+  assert_eq(c.get_dbl_ok(), 3.5)
+}
+''', encoding="utf-8")
+        pkg = out / "moon.pkg"
+        pkg.write_text(pkg.read_text(encoding="utf-8")
+                       + '\nimport { "moonbitlang/async", } for "wbtest"\n', encoding="utf-8")
+        for cmd in (["moon", "fmt"],
+                    ["moon", "check", "--target", "native", "--deny-warn"],
+                    ["moon", "test", "--target", "native", "--deny-warn"]):
+            checked = run(cmd, out)
+            assert checked.returncode == 0, checked.stdout + checked.stderr
+        assert len(seen) == len(bodies), seen
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
+# ── red-team BUG-3: component names colliding with generated/core types ───
+
+@pytest.mark.parametrize("name", ["Client", "Response", "String", "Config", "Presence"])
+def test_component_name_collisions_compile(name):
+    """A component whose name pascalizes to a generated/runtime/core type must
+    be renamed, not emit a duplicate type. Before the fix these generated exit 0
+    but failed moon check (duplicate definition)."""
+    obj = {"type": "object", "required": ["id"],
+           "properties": {"id": {"type": "integer"}}}
+    doc = spec("Collision", {
+        "/x": {"get": op(operation_id="getX",
+                         responses={"200": json_response({"$ref": "#/components/schemas/" + name})})},
+    }, schemas={name: obj})
+    result, out = generate(doc, "collision-" + name)
+    assert result.returncode == 0, result.stderr
+    checked = run(["moon", "check", "--target", "native", "--deny-warn"], out)
+    assert checked.returncode == 0, checked.stdout + checked.stderr
+    (out / "c_wbtest.mbt").write_text('''///|
+async test "collision model decodes" {
+  let c = Client::new(capture=CaptureTransport::new(Response::new(200, body="{\\"id\\":7}")))
+  assert_eq(c.get_x().id, 7)
+}
+''', encoding="utf-8")
+    pkg = out / "moon.pkg"
+    pkg.write_text(pkg.read_text(encoding="utf-8")
+                   + '\nimport { "moonbitlang/async", } for "wbtest"\n', encoding="utf-8")
+    for cmd in (["moon", "fmt"], ["moon", "test", "--target", "native", "--deny-warn"]):
+        checked = run(cmd, out)
+        assert checked.returncode == 0, checked.stdout + checked.stderr
+
+
+# ── red-team BUG-4: nullable array items (decode + generated encode) ──────
+
+def test_nullable_array_items():
+    """A nullable array item must decode null -> None and a bare value -> Some,
+    and encode back to the OpenAPI bare-value/null wire form (not MoonBit's
+    `[value]` Option convention). Covers Int, String, and Int64 elements.
+    """
+    bodies = {
+        "/ni": b"[9007199254740993,null,9223372036854775807]",
+        "/ns": b'["a",null,"b"]',
+        "/nint": b"[1,null,3]",
+    }
+    seen = []
+    post_bodies = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_GET(self):
+            seen.append(self.path)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(bodies.get(self.path, b"null"))
+
+        def do_POST(self):
+            seen.append(self.path)
+            post_bodies.append(self.rfile.read(int(self.headers["Content-Length"])))
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'"ok"')
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        ni = {"type": "array", "items": {"type": "integer", "format": "int64", "nullable": True}}
+        ns = {"type": "array", "items": {"type": "string", "nullable": True}}
+        nint = {"type": "array", "items": {"type": "integer", "nullable": True}}
+        doc = spec("Nullable", {
+            "/ni": {
+                "get": op(operation_id="getNi", responses={"200": json_response(ni)}),
+                "post": {"operationId": "postNi",
+                         "requestBody": {"required": True, "content": {"application/json": {"schema": ni}}},
+                         "responses": {"200": json_response({"type": "string"})}},
+            },
+            "/ns": {"get": op(operation_id="getNs", responses={"200": json_response(ns)})},
+            "/nint": {"get": op(operation_id="getNint", responses={"200": json_response(nint)})},
+        })
+        doc["servers"] = [{"url": "http://127.0.0.1:%d" % server.server_port}]
+        result, out = generate(doc, "nullable-items")
+        assert result.returncode == 0, result.stderr
+        (out / "n_wbtest.mbt").write_text('''///|
+async test "nullable array items decode and encode" {
+  let c = Client::new()
+  let vi = c.get_ni()
+  assert_eq(vi[0], Some(9007199254740993L))
+  assert_eq(vi[1], None)
+  assert_eq(vi[2], Some(9223372036854775807L))
+  let vs = c.get_ns()
+  assert_eq(vs[0], Some("a"))
+  assert_eq(vs[1], None)
+  let vn = c.get_nint()
+  assert_eq(vn, [Some(1), None, Some(3)])
+  assert_eq(c.post_ni([Some(9007199254740993L), None]), "ok")
+}
+''', encoding="utf-8")
+        pkg = out / "moon.pkg"
+        pkg.write_text(pkg.read_text(encoding="utf-8")
+                       + '\nimport { "moonbitlang/async", } for "wbtest"\n', encoding="utf-8")
+        for cmd in (["moon", "fmt"],
+                    ["moon", "check", "--target", "native", "--deny-warn"],
+                    ["moon", "test", "--target", "native", "--deny-warn"]):
+            checked = run(cmd, out)
+            assert checked.returncode == 0, checked.stdout + checked.stderr
+        # the POST body must use the bare-value/null wire form
+        assert seen.count("/ni") == 2, seen
+        assert post_bodies == [b"[9007199254740993,null]"], post_bodies
     finally:
         server.shutdown()
         server.server_close()

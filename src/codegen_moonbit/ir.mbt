@@ -279,6 +279,11 @@ fn parse_type_ref(value : Json, location : String) -> TypeRef raise {
       let item = parse_type_ref(item_value, location + ".item")
       { kind, name: None, item: Some(item), }
     }
+    "nullable" => {
+      let item_value = require_field(fields, "item", location)
+      let item = parse_type_ref(item_value, location + ".item")
+      { kind, name: None, item: Some(item), }
+    }
     _ => raise Failure(location + ": unsupported type kind " + kind.escape())
   }
 }
@@ -436,6 +441,11 @@ fn validate_named_type(
       match type_ref.item {
         Some(item) => validate_named_type(item, location + ".item", model_names)
         None => abort("validated array type is missing its item")
+      }
+    "nullable" =>
+      match type_ref.item {
+        Some(item) => validate_named_type(item, location + ".item", model_names)
+        None => abort("validated nullable type is missing its item")
       }
     _ => ()
   }

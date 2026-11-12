@@ -389,6 +389,49 @@ pub fn decode_int64(
 }
 
 ///|
+/// Decode a top-level `integer/int32` response from a JSON number. The core
+/// `Int::from_json` truncates fractions silently; this rejects them and any
+/// out-of-range value instead.
+pub fn decode_int(
+  response : Response,
+  operation_id? : String = "",
+) -> Int raise SdkError {
+  let json = response_json(response, operation_id~)
+  match json {
+    Number(n, ..) => {
+      if n.is_nan() || n.is_inf() || n != n.trunc() {
+        raise Decode(operation_id, "expected an integer (JSON number)")
+      }
+      if n > 2147483647.0 || n < -2147483648.0 {
+        raise Decode(operation_id, "integer value is out of range for Int")
+      }
+      n.to_int()
+    }
+    _ => raise Decode(operation_id, "expected an integer (JSON number)")
+  }
+}
+
+///|
+/// Decode a top-level `number/double` response from a finite JSON number. The
+/// core `Double::from_json` also accepts the strings "NaN"/"Infinity"; this
+/// rejects any non-number and any non-finite value.
+pub fn decode_double(
+  response : Response,
+  operation_id? : String = "",
+) -> Double raise SdkError {
+  let json = response_json(response, operation_id~)
+  match json {
+    Number(n, ..) => {
+      if n.is_nan() || n.is_inf() {
+        raise Decode(operation_id, "expected a finite JSON number")
+      }
+      n
+    }
+    _ => raise Decode(operation_id, "expected a finite JSON number")
+  }
+}
+
+///|
 /// Assert that the response status is one of the expected values.
 ///
 /// On failure, raises `Http` carrying the full status, headers, and raw

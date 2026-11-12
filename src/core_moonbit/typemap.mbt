@@ -75,7 +75,11 @@ pub fn map_schema(
   let kind = text(get(schema, "kind"))
   if kind == "array" {
     let items = get(schema, "items")
-    return Array(map_schema(items, names~))
+    let item_type = map_schema(items, names~)
+    if truth(get(items, "nullable")) {
+      return Array(Nullable(item_type))
+    }
+    return Array(item_type)
   }
   if kind == "integer" {
     let fmt = text(get(schema, "format"))
@@ -136,6 +140,10 @@ pub fn type_ref_to_json(t : TypeRef) -> Json {
     Array(item) =>
       Json::object(
         Map([("kind", Json::string("array")), ("item", type_ref_to_json(item))]),
+      )
+    Nullable(item) =>
+      Json::object(
+        Map([("kind", Json::string("nullable")), ("item", type_ref_to_json(item))]),
       )
   }
 }

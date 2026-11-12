@@ -38,6 +38,7 @@ pub enum TypeRef {
   Scalar(String)
   Named(String)
   Array(TypeRef)
+  Nullable(TypeRef)
 } derive(Eq, Debug, Hash)
 
 ///|

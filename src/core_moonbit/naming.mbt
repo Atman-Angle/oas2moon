@@ -19,6 +19,19 @@ let reserved : Map[String, Bool] = {
   for kw in words {
     m[kw] = true
   }
+  // PascalCase type names already defined by the generated package, the SDK
+  // runtime, or the MoonBit core. A component schema whose name pascalizes to
+  // one of these would otherwise emit a duplicate type that fails moon check.
+  let type_names = [
+    "Client", "Config", "Presence", "Request", "Response", "SdkError",
+    "CaptureTransport", "JPath", "JErr",
+    "String", "Int", "Int32", "Int64", "UInt", "UInt32", "UInt64", "Bool",
+    "Double", "Float", "Json", "Unit", "Char", "Byte", "Array", "Map", "Option",
+    "Result", "StringBuilder",
+  ]
+  for tn in type_names {
+    m[tn] = true
+  }
   m
 }
 
