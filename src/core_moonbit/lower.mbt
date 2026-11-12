@@ -149,6 +149,13 @@ fn parse_model(
       return EnumModel({ name: model_name, members, })
     }
   }
+  // A non-object component (array, primitive, or bare $ref) becomes a
+  // transparent type alias. Lowering it to a struct would emit an empty model
+  // whose decoder only accepts a JSON object, so a legal array or primitive
+  // wire value would fail to decode.
+  if kind != "object" {
+    return AliasModel({ name: model_name, type_ref: map_schema(schema_json, names~), })
+  }
   // Parse as struct
   let properties = obj(get(schema_json, "properties"))
   let required_list = arr(get(schema_json, "required"))
@@ -478,6 +485,7 @@ fn model_name(m : ModelIr) -> String {
   match m {
     EnumModel(e) => e.name
     StructModel(s) => s.name
+    AliasModel(a) => a.name
   }
 }
 

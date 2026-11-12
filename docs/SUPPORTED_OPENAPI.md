@@ -82,3 +82,13 @@ and the Int64 bounds `±9223372036854775807/8` are not rounded. Out-of-range
 values, booleans, strings, and non-integral numbers fail with a structured
 decode error. Integral decimal/exponent forms (`1.0`, `1e3`) decode to their
 exact integer value, matching the `Int` decoder.
+
+A non-object component schema (top-level array, primitive, or bare `$ref`)
+lowers to a transparent MoonBit type alias (`pub type Pets = Array[Pet]`), not
+an empty struct, so a legal array or primitive wire value decodes through the
+element type's own codec. A top-level `Array[Int64]` response uses the generated
+array decoder so its elements keep full Int64 precision. The same file's
+`test_component_array_and_primitive_aliases` proves the official OAI `Pets`
+array component and primitive aliases decode legal wire over a local HTTP
+server; previously these compiled but failed to decode (`compile_pass` masked
+the semantic defect).

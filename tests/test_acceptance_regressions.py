@@ -247,3 +247,100 @@ def test_int64_wire_decode():
         server.shutdown()
         server.server_close()
         thread.join()
+
+
+# ── defect B: top-level array/primitive components must decode legal wire ──
+
+def test_component_array_and_primitive_aliases():
+    """A top-level array/primitive component lowers to a transparent alias, not
+    an empty struct. Before the fix the official OAI `Pets` array component
+    became an empty struct and a legal list raised Decode("expected a JSON
+    object"); compile_pass masked it. Proven here through the generated client
+    over a local HTTP server.
+    """
+    bodies = {
+        "/pets": b'[{"id":9007199254740993,"name":"Rex"}]',
+        "/empty": b'[]',
+        "/count": b'9223372036854775807',
+        "/ids": b'[9007199254740993,9223372036854775807,-9223372036854775808]',
+        "/names": b'["a","b"]',
+        "/label": b'"hello"',
+        "/flag": b'true',
+        "/badids": b'["9007199254740993"]',
+    }
+    seen = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_GET(self):
+            seen.append(self.path)
+            body = bodies.get(self.path, b'null')
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(body)
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        ref = lambda name: {"$ref": "#/components/schemas/" + name}
+        doc = spec("Aliases", {
+            "/pets": {"get": op(operation_id="listPets", responses={"200": json_response(ref("Pets"))})},
+            "/empty": {"get": op(operation_id="listEmpty", responses={"200": json_response(ref("Pets"))})},
+            "/count": {"get": op(operation_id="getCount", responses={"200": json_response(ref("Count"))})},
+            "/ids": {"get": op(operation_id="getIds", responses={"200": json_response(ref("Ids"))})},
+            "/names": {"get": op(operation_id="getNames", responses={"200": json_response(ref("Names"))})},
+            "/label": {"get": op(operation_id="getLabel", responses={"200": json_response(ref("Label"))})},
+            "/flag": {"get": op(operation_id="getFlag", responses={"200": json_response(ref("Flag"))})},
+            "/badids": {"get": op(operation_id="getBadIds", responses={"200": json_response(ref("Ids"))})},
+        }, schemas={
+            "Pet": {"type": "object", "required": ["id", "name"],
+                    "properties": {"id": {"type": "integer", "format": "int64"},
+                                   "name": {"type": "string"}}},
+            "Pets": {"type": "array", "items": ref("Pet")},
+            "Count": {"type": "integer", "format": "int64"},
+            "Ids": {"type": "array", "items": {"type": "integer", "format": "int64"}},
+            "Names": {"type": "array", "items": {"type": "string"}},
+            "Label": {"type": "string"},
+            "Flag": {"type": "boolean"},
+        })
+        doc["servers"] = [{"url": "http://127.0.0.1:%d" % server.server_port}]
+        result, out = generate(doc, "aliases")
+        assert result.returncode == 0, result.stderr
+        # the array component must be an alias, never an empty struct
+        models = (out / "models.mbt").read_text(encoding="utf-8")
+        assert "pub type Pets = Array[Pet]" in models, models
+
+        (out / "alias_wbtest.mbt").write_text('''///|
+async test "component aliases decode legal wire" {
+  let c = Client::new()
+  let pets = c.list_pets()
+  assert_eq(pets.length(), 1)
+  assert_eq(pets[0].id, 9007199254740993L)
+  assert_eq(pets[0].name, "Rex")
+  assert_eq(c.list_empty().length(), 0)
+  assert_eq(c.get_count(), 9223372036854775807L)
+  assert_eq(c.get_ids(), [9007199254740993L, 9223372036854775807L, -9223372036854775808L])
+  assert_eq(c.get_names(), ["a", "b"])
+  assert_eq(c.get_label(), "hello")
+  assert_eq(c.get_flag(), true)
+  try { ignore(c.get_bad_ids()); fail("string element accepted") }
+  catch { Decode(_, _) => (); _ => fail("wrong error") }
+}
+''', encoding="utf-8")
+        pkg = out / "moon.pkg"
+        pkg.write_text(pkg.read_text(encoding="utf-8")
+                       + '\nimport { "moonbitlang/async", } for "wbtest"\n', encoding="utf-8")
+        for cmd in (["moon", "fmt"],
+                    ["moon", "check", "--target", "native", "--deny-warn"],
+                    ["moon", "test", "--target", "native", "--deny-warn"]):
+            checked = run(cmd, out)
+            assert checked.returncode == 0, checked.stdout + checked.stderr
+        assert len(seen) == len(bodies), seen
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()

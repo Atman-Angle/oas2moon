@@ -100,6 +100,14 @@ fn model_to_json(m : ModelIr) -> Json {
         ]),
       )
     }
+    AliasModel(a) =>
+      Json::object(
+        Map([
+          ("kind", Json::string("alias")),
+          ("name", Json::string(a.name)),
+          ("type", type_ref_to_json(a.type_ref)),
+        ]),
+      )
   }
 }
 

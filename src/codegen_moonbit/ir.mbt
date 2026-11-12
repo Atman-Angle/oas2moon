@@ -43,6 +43,13 @@ pub struct StructModelIr {
 pub enum ModelIr {
   EnumModel(EnumModelIr)
   StructModel(StructModelIr)
+  AliasModel(AliasModelIr)
+} derive(Eq, Debug)
+
+///|
+pub struct AliasModelIr {
+  name : String
+  type_ref : TypeRef
 } derive(Eq, Debug)
 
 ///|
@@ -453,7 +460,24 @@ fn validate_model_references(
           model_names,
         )
       }
+    AliasModel(value) =>
+      validate_named_type(
+        value.type_ref,
+        "canonical.models." + value.name + ".type",
+        model_names,
+      )
   }
+}
+
+///|
+fn parse_alias(
+  fields : Map[String, Json],
+  location : String,
+) -> AliasModelIr raise {
+  let name = require_string_field(fields, "name", location)
+  let type_value = require_field(fields, "type", location)
+  let type_ref = parse_type_ref(type_value, location + ".type")
+  { name, type_ref, }
 }
 
 ///|
@@ -463,6 +487,7 @@ fn parse_model(value : Json, location : String) -> ModelIr raise {
   match kind {
     "enum" => EnumModel(parse_enum(fields, location))
     "struct" => StructModel(parse_struct(fields, location))
+    "alias" => AliasModel(parse_alias(fields, location))
     _ => raise Failure(location + ": unsupported model kind " + kind.escape())
   }
 }
@@ -810,6 +835,7 @@ pub fn parse_api(value : Json) -> ApiIr raise {
     let name = match model {
       EnumModel(value) => value.name
       StructModel(value) => value.name
+      AliasModel(value) => value.name
     }
     if model_names.get(name) is Some(_) {
       raise Failure(location + ": duplicate model name " + name.escape())

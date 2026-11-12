@@ -138,10 +138,20 @@ pub struct OperationIr {
 } derive(Eq, Debug)
 
 ///|
-/// A model in the Canonical IR: either an enum or a struct.
+/// A model in the Canonical IR: an enum, a struct, or a transparent type alias.
 pub enum ModelIr {
   EnumModel(EnumModelIr)
   StructModel(StructModelIr)
+  AliasModel(AliasModelIr)
+} derive(Eq, Debug)
+
+///|
+/// A transparent type alias for a non-object component schema (array or
+/// primitive). It lowers to `type Name = T` so a legal wire value decodes
+/// through T's own codec instead of an empty struct.
+pub struct AliasModelIr {
+  name : String
+  type_ref : TypeRef
 } derive(Eq, Debug)
 
 ///|

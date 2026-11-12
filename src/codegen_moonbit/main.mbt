@@ -91,6 +91,58 @@ fn is_int64_scalar(type_ref : TypeRef) -> Bool {
 }
 
 ///|
+/// Resolve a named type alias to its underlying type. Named structs and
+/// non-named types are returned unchanged. Alias chains cannot cycle because
+/// the core authority rejects cyclic references before lowering.
+fn resolve_type(type_ref : TypeRef, api : ApiIr) -> TypeRef {
+  if type_ref.kind != "named" {
+    return type_ref
+  }
+  let name = match type_ref.name {
+    Some(n) => n
+    None => return type_ref
+  }
+  for model in api.models {
+    match model {
+      AliasModel(a) =>
+        if a.name == name {
+          return resolve_type(a.type_ref, api)
+        }
+      _ => ()
+    }
+  }
+  type_ref
+}
+
+///|
+/// Build the response-body decode expression for a result type. Aliases are
+/// resolved so an Int64 scalar uses decode_int64 and an Int64 array uses the
+/// generated array decoder through a FromJson wrapper; other types decode via
+/// the transparent typealias or the named struct codec.
+fn response_decode_expr(
+  type_ref : TypeRef,
+  api : ApiIr,
+  operation_id : String,
+) -> String {
+  let resolved = resolve_type(type_ref, api)
+  if is_int64_scalar(resolved) {
+    "decode_int64(response, operation_id=" + quoted(operation_id) + ")"
+  } else if resolved.kind == "array" && contains_int64(resolved) {
+    "(decode_json(response, operation_id=" +
+    quoted(operation_id) +
+    ") : I64Resp_" +
+    int64_codec_suffix(resolved) +
+    ").value"
+  } else {
+    "(decode_json(response, operation_id=" +
+    quoted(operation_id) +
+    ") : " +
+    render_type(type_ref) +
+    ")"
+  }
+}
+
+///|
 fn field_moon_type(field : FieldIr) -> String {
   let rendered = render_type(field.type_ref)
   match field.presence {
@@ -239,6 +291,35 @@ fn emit_int64_helpers(out : StringBuilder, api : ApiIr) -> Unit {
         for field in value.fields {
           collect_int64_helpers(field.type_ref, seen, helpers)
         }
+      AliasModel(value) => collect_int64_helpers(value.type_ref, seen, helpers)
+    }
+  }
+  // A top-level response whose resolved type is an array containing scalar
+  // Int64 must use the generated array decoder: core from_json would read the
+  // number as a string. Collect these so the helper and a FromJson wrapper
+  // are both emitted.
+  let resp_types : Array[TypeRef] = []
+  let resp_seen : Map[String, Bool] = Map([])
+  for op in api.operations {
+    let response_types : Array[TypeRef] = []
+    match op.response_strategy {
+      SingleResult(tr) => response_types.push(tr)
+      ResponseEnum(variants) =>
+        for v in variants {
+          response_types.push(v.type_ref)
+        }
+      _ => ()
+    }
+    for tr in response_types {
+      let resolved = resolve_type(tr, api)
+      if resolved.kind == "array" && contains_int64(resolved) {
+        collect_int64_helpers(resolved, seen, helpers)
+        let suffix = int64_codec_suffix(resolved)
+        if resp_seen.get(suffix) is None {
+          resp_seen[suffix] = true
+          resp_types.push(resolved)
+        }
+      }
     }
   }
   for type_ref in helpers {
@@ -283,6 +364,26 @@ fn emit_int64_helpers(out : StringBuilder, api : ApiIr) -> Unit {
     line(out, "  }")
     line(out, "  out")
     line(out, "}")
+    line(out, "")
+  }
+  for type_ref in resp_types {
+    let suffix = int64_codec_suffix(type_ref)
+    let rendered = render_type(type_ref)
+    let wname = "I64Resp_" + suffix
+    line(out, "///|")
+    line(out, "pub(all) struct " + wname + " {")
+    line(out, "  value : " + rendered)
+    line(out, "} derive(Eq, Debug)")
+    emit_trait_extensions(out, wname, ["Eq", "@moonbitlang/core/debug.Debug"])
+    line(out, "")
+    line(out, "///|")
+    line(
+      out,
+      "pub impl FromJson for " + wname + " with fn from_json(json, path) {",
+    )
+    line(out, "  { value: __decode_" + suffix + "(json, path) }")
+    line(out, "}")
+    emit_trait_extensions(out, wname, ["@moonbitlang/core/json.FromJson"])
     line(out, "")
   }
 }
@@ -811,6 +912,13 @@ fn emit_struct(out : StringBuilder, model : StructModelIr) -> Unit {
 }
 
 ///|
+fn emit_alias(out : StringBuilder, model : AliasModelIr) -> Unit {
+  line(out, "///|")
+  line(out, "pub type " + model.name + " = " + render_type(model.type_ref))
+  line(out, "")
+}
+
+///|
 fn emit_models(api : ApiIr) -> String {
   let out = StringBuilder()
   line(out, "///|")
@@ -822,6 +930,7 @@ fn emit_models(api : ApiIr) -> String {
     match model {
       EnumModel(value) => emit_enum(out, value)
       StructModel(value) => emit_struct(out, value)
+      AliasModel(value) => emit_alias(out, value)
     }
   }
   out.to_string().trim_end(chars="\n").to_owned() + "\n"
@@ -1220,23 +1329,7 @@ fn emit_operation(out : StringBuilder, op : OperationIr, api : ApiIr) -> Unit {
   )
   match op.response_strategy {
     SingleResult(tr) =>
-      if is_int64_scalar(tr) {
-        line(
-          out,
-          "  decode_int64(response, operation_id=" +
-          quoted(op.operation_id) +
-          ")",
-        )
-      } else {
-        line(
-          out,
-          "  (decode_json(response, operation_id=" +
-          quoted(op.operation_id) +
-          ") : " +
-          render_type(tr) +
-          ")",
-        )
-      }
+      line(out, "  " + response_decode_expr(tr, api, op.operation_id))
     UnitResult => line(out, "  ()")
     NoContent => line(out, "  ()")
     ResponseEnum(variants) => {
@@ -1256,23 +1349,12 @@ fn emit_operation(out : StringBuilder, op : OperationIr, api : ApiIr) -> Unit {
           out,
           "      " + response_enum_name(op) + "::" + variant_name(v) + "(",
         )
-        if is_int64_scalar(v.type_ref) {
-          line(
-            out,
-            "        decode_int64(response, operation_id=" +
-            quoted(op.operation_id) +
-            "),",
-          )
-        } else {
-          line(
-            out,
-            "        (decode_json(response, operation_id=" +
-            quoted(op.operation_id) +
-            ") : " +
-            tname +
-            "),",
-          )
-        }
+        line(
+          out,
+          "        " +
+          response_decode_expr(v.type_ref, api, op.operation_id) +
+          ",",
+        )
         line(out, "      )")
         line(out, "    }")
       }
@@ -1395,6 +1477,10 @@ fn api_uses_int64(api : ApiIr) -> Bool {
           if contains_int64(field.type_ref) {
             return true
           }
+        }
+      AliasModel(value) =>
+        if contains_int64(value.type_ref) {
+          return true
         }
     }
   }
