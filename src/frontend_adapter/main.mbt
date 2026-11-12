@@ -224,7 +224,7 @@ fn schema_to_json(schema : @openapi.Schema) -> Json {
 ///|
 fn parameter_to_json(
   parameter : @openapi.Parameter,
-  index : Int,
+  index : Int32,
   root : Json,
   path : String,
   http_method : String,
@@ -385,11 +385,29 @@ fn main raise {
           ("security", Json::array(raw_security_alternatives(raw))),
           ("operations", Json::array(operations)),
           ("schemas", schemas),
-          ("issues", raw_unsupported_issues(raw)),
+          (
+            "issues",
+            merge_issue_arrays(
+              raw_unsupported_issues(raw),
+              raw_media_findings(raw),
+            ),
+          ),
           ("ignored", raw_ignored_issues(raw)),
         ]),
       )
       @fs.write_string_to_file(args[2], normalized.stringify(indent=2) + "\n")
     }
   }
+}
+
+///|
+fn merge_issue_arrays(left : Json, right : Json) -> Json {
+  let out : Array[Json] = []
+  for value in raw_array(left) {
+    out.push(value)
+  }
+  for value in raw_array(right) {
+    out.push(value)
+  }
+  Json::array(out)
 }

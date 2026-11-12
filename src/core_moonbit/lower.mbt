@@ -23,7 +23,7 @@ fn sort_operations(ops : Array[Json]) -> Array[Json] {
 }
 
 ///|
-fn remove_at_json(xs : Array[Json], skip : Int) -> Array[Json] {
+fn remove_at_json(xs : Array[Json], skip : Int32) -> Array[Json] {
   let out : Array[Json] = []
   for i, x in xs {
     if i != skip {
@@ -34,7 +34,7 @@ fn remove_at_json(xs : Array[Json], skip : Int) -> Array[Json] {
 }
 
 ///|
-fn method_rank(m : String) -> Int {
+fn method_rank(m : String) -> Int32 {
   if m == "DELETE" {
     0
   } else if m == "GET" {
@@ -116,7 +116,7 @@ fn parse_style(style_json : Json, loc : String) -> SerializationStyle {
 
 ///|
 /// Parse status code from a response JSON.
-fn parse_status(r : Json) -> Int {
+fn parse_status(r : Json) -> Int32 {
   let status_str = text(get(r, "status"))
   let mut n = 0
   for c in status_str {
@@ -430,7 +430,7 @@ fn sorted_strings(names : Array[String]) -> Array[String] {
 }
 
 ///|
-fn remove_at_string(xs : Array[String], skip : Int) -> Array[String] {
+fn remove_at_string(xs : Array[String], skip : Int32) -> Array[String] {
   let out : Array[String] = []
   for i, x in xs {
     if i != skip {
@@ -463,7 +463,7 @@ fn sort_models(xs : Array[ModelIr]) -> Array[ModelIr] {
 }
 
 ///|
-fn remove_at_model(xs : Array[ModelIr], skip : Int) -> Array[ModelIr] {
+fn remove_at_model(xs : Array[ModelIr], skip : Int32) -> Array[ModelIr] {
   let out : Array[ModelIr] = []
   for i, x in xs {
     if i != skip {

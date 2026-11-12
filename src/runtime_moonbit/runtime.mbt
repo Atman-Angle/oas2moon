@@ -315,6 +315,31 @@ fn is_json_media_type(value : String) -> Bool {
 }
 
 ///|
+/// Validate the response media type and parse the body into JSON.
+///
+/// Number source text is preserved so integer literals beyond 2^53-1 stay
+/// lossless for Int64 decoding instead of being rounded through a Double.
+pub fn response_json(
+  response : Response,
+  operation_id? : String = "",
+) -> Json raise SdkError {
+  match response_content_type(response) {
+    Some(media_type) =>
+      if !is_json_media_type(media_type) {
+        raise Unsupported(
+          operation_id,
+          "unsupported response media type: " + media_type,
+        )
+      }
+    None => ()
+  }
+  @json.parse(response.body, preserve_number_repr=true) catch {
+    err =>
+      raise Decode(operation_id, "failed to parse JSON: " + err.to_string())
+  }
+}
+
+///|
 /// Decode a JSON response body into the target type.
 ///
 /// A declared JSON operation that receives an unexpected response media type
@@ -327,22 +352,39 @@ pub fn[T : FromJson] decode_json(
   response : Response,
   operation_id? : String = "",
 ) -> T raise SdkError {
-  match response_content_type(response) {
-    Some(media_type) =>
-      if !is_json_media_type(media_type) {
-        raise Unsupported(
-          operation_id,
-          "unsupported response media type: " + media_type,
-        )
-      }
-    None => ()
-  }
-  let json : Json = @json.parse(response.body) catch {
-    err =>
-      raise Decode(operation_id, "failed to parse JSON: " + err.to_string())
-  }
+  let json = response_json(response, operation_id~)
   @json.from_json(json) catch {
     err => raise Decode(operation_id, err.to_string())
+  }
+}
+
+///|
+/// Decode a top-level `integer/int64` response from a JSON number.
+///
+/// The core `Int64::from_json` expects a string representation, which is wrong
+/// for an OpenAPI int64 wire value. Integers within 2^53-1 are exact as a
+/// Double; beyond that the preserved source text is parsed losslessly. A JSON
+/// string, boolean, fraction, or out-of-range value fails explicitly.
+pub fn decode_int64(
+  response : Response,
+  operation_id? : String = "",
+) -> Int64 raise SdkError {
+  let json = response_json(response, operation_id~)
+  match json {
+    Number(n, ..) => {
+      if n.is_nan() || n.is_inf() || n != n.trunc() {
+        raise Decode(operation_id, "expected an integer (JSON number)")
+      }
+      if n > 9007199254740991.0 || n < -9007199254740991.0 {
+        @string.parse_int64(json.stringify()) catch {
+          _ =>
+            raise Decode(operation_id, "integer value is out of range for Int64")
+        }
+      } else {
+        n.to_int64()
+      }
+    }
+    _ => raise Decode(operation_id, "expected an integer (JSON number)")
   }
 }
 

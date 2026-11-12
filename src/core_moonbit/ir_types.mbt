@@ -79,7 +79,7 @@ pub struct RequestBodyIr {
 ///|
 /// A single response in the Canonical IR.
 pub struct ResponseIr {
-  status : Int
+  status : Int32
   type_ref : TypeRef?
   media_type : String?
 } derive(Eq, Debug)
@@ -87,7 +87,7 @@ pub struct ResponseIr {
 ///|
 /// One variant in a response enum strategy.
 pub struct ResponseVariant {
-  status : Int
+  status : Int32
   type_ref : TypeRef
 } derive(Eq, Debug)
 

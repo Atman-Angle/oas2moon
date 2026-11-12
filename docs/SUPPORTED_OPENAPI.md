@@ -32,8 +32,9 @@ This is a bounded OpenAPI 3.0.x profile, not a claim of full OpenAPI support. â€
 ## Explicitly unsupported
 
 - OpenAPI 3.1.x and OpenAPI 2.0;
-- external or network `$ref`;
+- external, network, cyclic, or missing local `$ref`;
 - `oneOf`, `anyOf`, `discriminator`, and `allOf`;
+- non-string enums (integer/boolean) and duplicate enum wire values;
 - multipart/form-data, form-urlencoded, binary streaming, XML;
 - callbacks and webhooks;
 - OAuth authorization flows and OpenID Connect flows;
@@ -65,3 +66,19 @@ Canonical IR preserves `style` and `explode`, security alternatives as arrays of
 scheme names, and the allocated `response_name`. No-body response enum variants
 carry `Unit`. The codegen reader accepts legacy flat security arrays as a single
 AND group. Joined query arrays encode each item before inserting comma separators.
+
+`tests/test_acceptance_regressions.py` locks the fixes from the 2026-11-11
+independent acceptance review: unclassified request/response media types,
+external/cyclic/missing refs, root webhooks and callbacks, and non-string or
+duplicate enums all stop the CLI with exit code 4, a stable diagnostic
+(`unsupported.media_type`, `unsupported.ref`, `unsupported.keyword`,
+`unsupported.enum`), and no generated SDK.
+
+Int64 wire decoding is number-based and exact. A declared `integer/int64`
+response or field decodes from a JSON number, never a JSON string; integers
+within 2^53-1 are taken losslessly from the parsed value, and larger integers
+are parsed from the preserved source text so values such as `9007199254740993`
+and the Int64 bounds `Â±9223372036854775807/8` are not rounded. Out-of-range
+values, booleans, strings, and non-integral numbers fail with a structured
+decode error. Integral decimal/exponent forms (`1.0`, `1e3`) decode to their
+exact integer value, matching the `Int` decoder.

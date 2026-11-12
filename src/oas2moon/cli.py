@@ -30,6 +30,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import uuid
 from collections.abc import Iterator
 from pathlib import Path
@@ -114,6 +115,27 @@ def _copy_runtime_files(out_dir: Path) -> None:
             shutil.copy2(str(src), str(out_dir / name))
 
 
+def _ensure_string_import(out_dir: Path) -> None:
+    """Guarantee the ``string`` import that the copied runtime always needs.
+
+    Codegen emits the ``string`` import only when a generated model uses Int64,
+    but the runtime's top-level Int64 decoder (``decode_int64``) always parses
+    number source text via ``@string``. Insert it at the end of the first import
+    block so the fixed, deterministic import order is preserved.
+    """
+    pkg = out_dir / "moon.pkg"
+    text = pkg.read_text(encoding="utf-8")
+    if '"moonbitlang/core/string"' in text:
+        return
+    match = re.search(r"import\s*\{.*?\}", text, re.DOTALL)
+    if match is None:
+        return
+    block = match.group(0)
+    new_block = block[:-1] + '  "moonbitlang/core/string",\n}'
+    pkg.write_text(text[:match.start()] + new_block + text[match.end():],
+                   encoding="utf-8")
+
+
 @contextlib.contextmanager
 def _work_dir() -> Iterator[Path]:
     """Yield a unique scratch directory, and always remove it afterwards.
@@ -136,7 +158,22 @@ def _work_dir() -> Iterator[Path]:
     try:
         yield path
     finally:
-        shutil.rmtree(str(path), ignore_errors=True)
+        # On Windows, a child process can release its last handle just after
+        # ``moon`` exits.  A single best-effort rmtree can therefore leave a
+        # scratch directory behind and poison the next concurrent-generation
+        # check.  Retry briefly before giving up, while keeping cleanup out of
+        # the successful generation path.
+        for attempt in range(5):
+            try:
+                shutil.rmtree(str(path))
+            except FileNotFoundError:
+                break
+            except OSError:
+                if attempt == 4:
+                    break
+                time.sleep(0.05 * (attempt + 1))
+            else:
+                break
 
 
 def _write_moon_pkg(out_dir: Path) -> None:
@@ -279,6 +316,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
         # ── Step 4: Copy runtime files ──────────────────────────
         step = "runtime: copy runtime sources"
         _copy_runtime_files(out_dir)
+        _ensure_string_import(out_dir)
         print(_step_label(step, True), file=sys.stderr)
 
         # ── Step 5: moon fmt ────────────────────────────────────

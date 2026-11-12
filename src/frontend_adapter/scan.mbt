@@ -63,6 +63,21 @@ fn scan_schema(
 ) -> Unit {
   match node {
     Object(entries) => {
+      match entries.get("$ref") {
+        Some(String(ref_path)) =>
+          if !ref_path.has_prefix("#/components/schemas/") {
+            out.push(
+              Json::object(
+                Map([
+                  ("pointer", Json::string(pointer + "/$ref")),
+                  ("keyword", Json::string("externalRef")),
+                  ("value", Json::string(ref_path)),
+                ]),
+              ),
+            )
+          }
+        _ => ()
+      }
       for keyword in keywords {
         match entries.get(keyword) {
           Some(value) => {
@@ -338,7 +353,105 @@ fn raw_keyword_findings(root : Json, keywords : Array[String]) -> Json {
       }
     _ => ()
   }
+  match raw_get(root, "webhooks") {
+    Object(_) =>
+      out.push(
+        Json::object(
+          Map([
+            ("pointer", Json::string("#/webhooks")),
+            ("keyword", Json::string("webhooks")),
+            ("value", Json::string("webhooks")),
+          ]),
+        ),
+      )
+    _ => ()
+  }
   Json::array(out)
+}
+
+///|
+/// Report request and response media types outside the JSON profile. The
+/// parser may drop these content entries, so this check must run on raw input.
+fn raw_media_findings(root : Json) -> Json {
+  let out : Array[Json] = []
+  match raw_get(root, "paths") {
+    Object(paths) =>
+      for path, path_item in paths {
+        match path_item {
+          Object(methods) =>
+            for verb, operation in methods {
+              if [
+                  "get", "post", "put", "patch", "delete", "head", "options", "trace",
+                ].contains(verb) {
+                let base = "#/paths/" + pointer_escape(path) + "/" + verb
+                match raw_get(operation, "requestBody") {
+                  Object(body) =>
+                    record_media_content(
+                      raw_get(Json::object(body), "content"),
+                      base + "/requestBody/content",
+                      out,
+                    )
+                  _ => ()
+                }
+                match raw_get(operation, "responses") {
+                  Object(responses) =>
+                    for status, response in responses {
+                      match response {
+                        Object(response_fields) =>
+                          record_media_content(
+                            raw_get(Json::object(response_fields), "content"),
+                            base +
+                            "/responses/" +
+                            pointer_escape(status) +
+                            "/content",
+                            out,
+                          )
+                        _ => ()
+                      }
+                    }
+                  _ => ()
+                }
+              }
+            }
+          _ => ()
+        }
+      }
+    _ => ()
+  }
+  Json::array(out)
+}
+
+///|
+/// Report media types the normalizer cannot classify as safe JSON. It accepts
+/// only the literal `application/json` and `application/*+json` content keys,
+/// so any other declared media type is unsupported and must stop generation
+/// rather than be silently dropped to a no-content response.
+fn record_media_content(
+  content : Json,
+  pointer : String,
+  out : Array[Json],
+) -> Unit {
+  match content {
+    Object(entries) =>
+      for media_type, _value in entries {
+        if media_type != "application/json" &&
+          media_type != "application/*+json" {
+          out.push(
+            Json::object(
+              Map([
+                (
+                  "pointer",
+                  Json::string(pointer + "/" + pointer_escape(media_type)),
+                ),
+                ("keyword", Json::string("mediaType")),
+                ("value", Json::string(media_type)),
+              ]),
+            ),
+          )
+        }
+      }
+    _ => ()
+  }
 }
 
 ///|
@@ -362,7 +475,7 @@ fn raw_parameter_serialization(
   root : Json,
   path : String,
   http_method : String,
-  index : Int,
+  index : Int32,
 ) -> (Json, Json) {
   let path_parameters = raw_array(
     raw_get(raw_get(raw_get(root, "paths"), path), "parameters"),

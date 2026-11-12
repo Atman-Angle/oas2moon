@@ -65,7 +65,7 @@ pub fn ref_target(ref_path : String) -> String {
 /// Map a Frontend Model schema JSON node to a TypeRef.
 pub fn map_schema(
   schema : Json,
-  names? : Map[String, String] = Map([]),
+  names~ : Map[String, String] = Map([]),
 ) -> TypeRef {
   let ref_path = text(get(schema, "ref"))
   if ref_path != "" {

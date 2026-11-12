@@ -104,6 +104,9 @@ function Get-SourceHashes {
     param([Parameter(Mandatory)][string]$Directory)
     $hashes = [ordered]@{}
     Get-ChildItem -LiteralPath $Directory -File | Sort-Object Name | ForEach-Object {
+        # Moon generates this interface metadata during fmt/check/test. It is
+        # a build artifact, so it must not participate in source determinism.
+        if ($_.Name -eq 'pkg.generated.mbti') { return }
         $bytes = [System.IO.File]::ReadAllBytes($_.FullName)
         $hash = [System.Security.Cryptography.SHA256]::Create().ComputeHash($bytes)
         $hashes[$_.Name] = [System.Convert]::ToHexString($hash)

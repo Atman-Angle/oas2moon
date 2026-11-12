@@ -68,7 +68,7 @@ fn is_digit(ch : Char) -> Bool {
 /// Convert a Char to uppercase.
 fn to_upper_char(ch : Char) -> Char {
   if ch >= 'a' && ch <= 'z' {
-    Int::unsafe_to_char(ch.to_int() - 32)
+    Int32::unsafe_to_char(ch.to_int() - 32)
   } else {
     ch
   }
@@ -101,7 +101,7 @@ fn to_lower_str(s : String) -> String {
   let buf = StringBuilder()
   for ch in s {
     if ch >= 'A' && ch <= 'Z' {
-      buf.write_char(Int::unsafe_to_char(ch.to_int() + 32))
+      buf.write_char(Int32::unsafe_to_char(ch.to_int() + 32))
     } else {
       buf.write_char(ch)
     }

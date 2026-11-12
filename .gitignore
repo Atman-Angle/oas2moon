@@ -14,6 +14,7 @@ venv/
 _build/
 .mooncakes/
 target/
+pkg.generated.mbti
 
 # Generated spike output and local dependencies
 .spike-scratch/
@@ -59,6 +60,7 @@ corpus/_downloads/
 # Local-only development material (kept on disk, omitted from public Git)
 /AGENTS.md
 /prompts/
+/docs/application/
 /src/README.md
 /spike/README.md
 /tests/reference_python/

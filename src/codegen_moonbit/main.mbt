@@ -86,6 +86,11 @@ fn contains_int64(type_ref : TypeRef) -> Bool {
 }
 
 ///|
+fn is_int64_scalar(type_ref : TypeRef) -> Bool {
+  type_ref.kind == "scalar" && type_ref.name == Some("Int64")
+}
+
+///|
 fn field_moon_type(field : FieldIr) -> String {
   let rendered = render_type(field.type_ref)
   match field.presence {
@@ -195,30 +200,27 @@ fn emit_int64_helpers(out : StringBuilder, api : ApiIr) -> Unit {
   if uses_int64 {
     line(out, "///|")
     line(out, "fn __dec_i64(json : Json, path : JPath) -> Int64 raise JErr {")
-    line(out, "  if json is String(s) {")
-    line(out, "    @string.parse_int64(s) catch {")
+    line(out, "  match json {")
+    line(out, "    Number(n, ..) => {")
+    line(out, "      if n.is_nan() || n.is_inf() || n != n.trunc() {")
     line(
-      out, "      _ => raise __error(path, \"integer value is out of range for Int64\")",
+      out, "        raise __error(path, \"expected an integer (JSON number)\")",
     )
-    line(out, "    }")
-    line(out, "  } else {")
-    line(out, "    match json {")
+    line(out, "      }")
+    line(out, "      // Beyond 2^53-1 a Double rounds; parse the preserved source text.")
+    line(out, "      if n > 9007199254740991.0 || n < -9007199254740991.0 {")
+    line(out, "        @string.parse_int64(json.stringify()) catch {")
     line(
-      out, "      Number(n, ..) if !n.is_nan() && !n.is_inf() && n == n.trunc() => {",
-    )
-    line(out, "        let max_bound = 9223372036854775807L.to_double()")
-    line(out, "        let min_bound = (-9223372036854775808L).to_double()")
-    line(out, "        if n > max_bound || n < min_bound {")
-    line(
-      out, "          raise __error(path, \"integer value is out of range for Int64\")",
+      out, "          _ => raise __error(path, \"integer value is out of range for Int64\")",
     )
     line(out, "        }")
+    line(out, "      } else {")
     line(out, "        n.to_int64()")
     line(out, "      }")
-    line(
-      out, "      _ => raise __error(path, \"expected an integer (JSON number)\")",
-    )
     line(out, "    }")
+    line(
+      out, "    _ => raise __error(path, \"expected an integer (JSON number)\")",
+    )
     line(out, "  }")
     line(out, "}")
     line(out, "")
@@ -1218,14 +1220,23 @@ fn emit_operation(out : StringBuilder, op : OperationIr, api : ApiIr) -> Unit {
   )
   match op.response_strategy {
     SingleResult(tr) =>
-      line(
-        out,
-        "  (decode_json(response, operation_id=" +
-        quoted(op.operation_id) +
-        ") : " +
-        render_type(tr) +
-        ")",
-      )
+      if is_int64_scalar(tr) {
+        line(
+          out,
+          "  decode_int64(response, operation_id=" +
+          quoted(op.operation_id) +
+          ")",
+        )
+      } else {
+        line(
+          out,
+          "  (decode_json(response, operation_id=" +
+          quoted(op.operation_id) +
+          ") : " +
+          render_type(tr) +
+          ")",
+        )
+      }
     UnitResult => line(out, "  ()")
     NoContent => line(out, "  ()")
     ResponseEnum(variants) => {
@@ -1245,14 +1256,23 @@ fn emit_operation(out : StringBuilder, op : OperationIr, api : ApiIr) -> Unit {
           out,
           "      " + response_enum_name(op) + "::" + variant_name(v) + "(",
         )
-        line(
-          out,
-          "        (decode_json(response, operation_id=" +
-          quoted(op.operation_id) +
-          ") : " +
-          tname +
-          "),",
-        )
+        if is_int64_scalar(v.type_ref) {
+          line(
+            out,
+            "        decode_int64(response, operation_id=" +
+            quoted(op.operation_id) +
+            "),",
+          )
+        } else {
+          line(
+            out,
+            "        (decode_json(response, operation_id=" +
+            quoted(op.operation_id) +
+            ") : " +
+            tname +
+            "),",
+          )
+        }
         line(out, "      )")
         line(out, "    }")
       }
