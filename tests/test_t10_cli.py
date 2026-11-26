@@ -119,6 +119,7 @@ def test_success_json() -> None:
     assert r.returncode == 0, f"CLI failed:\n{r.stderr}"
     # Check key output files exist
     assert (out_dir / "moon.mod").is_file()
+    assert '"moonbitlang/async@0.22.10"' in (out_dir / "moon.mod").read_text(encoding="utf-8")
     assert (out_dir / "moon.pkg").is_file()
     assert (out_dir / "models.mbt").is_file()
     assert (out_dir / "runtime.mbt").is_file()

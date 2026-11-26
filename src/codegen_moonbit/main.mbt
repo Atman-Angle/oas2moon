@@ -1144,7 +1144,7 @@ fn module_file(module_name : String, has_operations : Bool) -> String {
   if has_operations {
     // Generated operations reach the network through the runtime transport,
     // which is built on moonbitlang/async/http.
-    result += "\nimport {\n  \"moonbitlang/async@0.20.2\",\n}\n"
+    result += "\nimport {\n  \"moonbitlang/async@0.22.10\",\n}\n"
   }
   result + "\npreferred_target = \"native\"\n"
 }
