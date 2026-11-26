@@ -13,7 +13,7 @@ keywords = [ "openapi", "http", "client", "runtime" ]
 description = "Runtime request, response, encoding, auth, and transport boundary for oas2moon clients."
 
 import {
-  "moonbitlang/async@0.20.2",
+  "moonbitlang/async@0.22.10",
 }
 
 preferred_target = "native"
