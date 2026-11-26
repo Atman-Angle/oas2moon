@@ -291,13 +291,14 @@ pub fn[T : ToJson] encode_json(value : T) -> String {
 }
 
 ///|
-/// Return the response `Content-Type`, accepting the two common header
-/// capitalizations. HTTP header names are case-insensitive.
+/// Return the response `Content-Type`. HTTP header names are case-insensitive.
 fn response_content_type(response : Response) -> String? {
-  match response.headers.get("Content-Type") {
-    Some(value) => Some(value)
-    None => response.headers.get("content-type")
+  for name, value in response.headers {
+    if name.to_lower() == "content-type" {
+      return Some(value)
+    }
   }
+  None
 }
 
 ///|

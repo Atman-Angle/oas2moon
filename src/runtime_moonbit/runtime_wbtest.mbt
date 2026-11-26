@@ -272,6 +272,17 @@ test "decode_json accepts JSON media type parameters and suffixes" {
 }
 
 ///|
+test "decode_json accepts mixed-case Content-Type header names" {
+  let response = Response::new(
+    200,
+    headers=Map([("cOnTeNt-TyPe", "application/json")]),
+    body="3",
+  )
+  let parsed : Int32 = decode_json(response, operation_id="get_three")
+  assert_eq(parsed, 3)
+}
+
+///|
 test "SdkError::to_string is stable and contains no absolute paths" {
   // Http error display
   let http_err = SdkError::http("get_pet", 404, Map([]), "not found")
