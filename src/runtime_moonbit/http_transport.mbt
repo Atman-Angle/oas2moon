@@ -7,6 +7,28 @@
 /// `CaptureTransport` (unit tests) or delegates here through `transmit`.
 
 ///|
+/// Convert the runtime's string-keyed headers into async/http's
+/// case-insensitive header map at the transport boundary.
+fn to_http_headers(headers : Map[String, String]) -> @http.Headers {
+  let out : @http.Headers = Map([])
+  for key, value in headers {
+    out[key] = value
+  }
+  out
+}
+
+///|
+/// Convert async/http response headers back to the runtime's stable public
+/// representation so generated clients do not depend on the transport type.
+fn from_http_headers(headers : @http.Headers) -> Map[String, String] {
+  let out : Map[String, String] = Map([])
+  for key, value in headers {
+    out[key.to_string()] = value
+  }
+  out
+}
+
+///|
 /// Map the canonical HTTP method string onto the async HTTP client enum.
 ///
 /// The generator only emits methods from the V1 profile; anything outside it
@@ -77,6 +99,7 @@ pub async fn transmit(
       headers["Content-Length"] = @utf8.encode(text).length().to_string()
     None => ()
   }
+  let http_headers = to_http_headers(headers)
   let client = @http.Client::Client(config.origin) catch {
     err => raise Transport(operation_id, err.to_string())
   }
@@ -84,7 +107,7 @@ pub async fn transmit(
     client.request(
       request_method(request.http_method, operation_id),
       target,
-      extra_headers=headers,
+      extra_headers=http_headers,
     )
     match request.body {
       Some(text) => client.write(text)
@@ -96,7 +119,11 @@ pub async fn transmit(
     } else {
       client.read_all().text()
     }
-    { status: response.code, headers: response.headers, body, }
+    {
+      status: response.code,
+      headers: from_http_headers(response.headers),
+      body,
+    }
   } catch {
     err => {
       client.close()
