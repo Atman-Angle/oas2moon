@@ -300,6 +300,28 @@ fn scan_operation(
 ///|
 fn raw_keyword_findings(root : Json, keywords : Array[String]) -> Json {
   let out : Array[Json] = []
+  let components = raw_get(root, "components")
+  for section in ["parameters", "requestBodies", "responses"] {
+    for name, value in raw_object_entries(raw_get(components, section)) {
+      let pointer = "#/components/" + section + "/" + pointer_escape(name)
+      if section == "parameters" {
+        scan_schema(
+          raw_get(value, "schema"),
+          pointer + "/schema",
+          out,
+          keywords,
+        )
+      }
+      for media, entry in raw_object_entries(raw_get(value, "content")) {
+        scan_content(
+          entry,
+          pointer + "/content/" + pointer_escape(media),
+          out,
+          keywords,
+        )
+      }
+    }
+  }
   match raw_get(root, "components") {
     Object(components) =>
       match components.get("schemas") {
@@ -378,13 +400,32 @@ fn raw_media_findings(root : Json) -> Json {
     Object(paths) =>
       for path, path_item in paths {
         match path_item {
-          Object(methods) =>
+          Object(methods) => {
+            scan_parameter_uses(
+              root,
+              raw_get(path_item, "parameters"),
+              "#/paths/" + pointer_escape(path),
+              out,
+            )
             for verb, operation in methods {
               if [
                   "get", "post", "put", "patch", "delete", "head", "options", "trace",
                 ].contains(verb) {
                 let base = "#/paths/" + pointer_escape(path) + "/" + verb
-                match raw_get(operation, "requestBody") {
+                scan_parameter_uses(
+                  root,
+                  raw_get(operation, "parameters"),
+                  base,
+                  out,
+                )
+                match
+                  scan_component_use(
+                    root,
+                    "requestBodies",
+                    raw_get(operation, "requestBody"),
+                    base + "/requestBody",
+                    out,
+                  ) {
                   Object(body) =>
                     record_media_content(
                       raw_get(Json::object(body), "content"),
@@ -396,7 +437,14 @@ fn raw_media_findings(root : Json) -> Json {
                 match raw_get(operation, "responses") {
                   Object(responses) =>
                     for status, response in responses {
-                      match response {
+                      match
+                        scan_component_use(
+                          root,
+                          "responses",
+                          response,
+                          base + "/responses/" + pointer_escape(status),
+                          out,
+                        ) {
                         Object(response_fields) =>
                           record_media_content(
                             raw_get(Json::object(response_fields), "content"),
@@ -413,6 +461,7 @@ fn raw_media_findings(root : Json) -> Json {
                 }
               }
             }
+          }
           _ => ()
         }
       }
@@ -423,9 +472,11 @@ fn raw_media_findings(root : Json) -> Json {
 
 ///|
 /// Report media types the normalizer cannot classify as safe JSON. It accepts
-/// only the literal `application/json` and `application/*+json` content keys,
-/// so any other declared media type is unsupported and must stop generation
-/// rather than be silently dropped to a no-content response.
+/// only the literal `application/json` content key, so any other declared media
+/// type is unsupported and must stop generation rather than be silently
+/// dropped to a no-content response. Runtime response parsing accepts JSON
+/// structured suffixes, but generated declarations currently carry only the
+/// exact media type they can emit and validate.
 fn record_media_content(
   content : Json,
   pointer : String,
@@ -434,8 +485,7 @@ fn record_media_content(
   match content {
     Object(entries) =>
       for media_type, _value in entries {
-        if media_type != "application/json" &&
-          media_type != "application/*+json" {
+        if media_type != "application/json" {
           out.push(
             Json::object(
               Map([
@@ -467,43 +517,48 @@ fn raw_ignored_issues(root : Json) -> Json {
 }
 
 ///|
-/// Raw serialization metadata for one operation parameter.
-///
-/// OpenAPI defaults differ per location, so the raw `style`/`explode` are
-/// carried through as declared rather than applied here.
-fn raw_parameter_serialization(
+fn scan_component_use(
   root : Json,
-  path : String,
-  http_method : String,
-  index : Int32,
-) -> (Json, Json) {
-  let path_parameters = raw_array(
-    raw_get(raw_get(raw_get(root, "paths"), path), "parameters"),
-  )
-  let operation_parameters = raw_array(
-    raw_get(
-      raw_get(raw_get(raw_get(root, "paths"), path), http_method.to_lower()),
-      "parameters",
-    ),
-  )
-  let parameter = if index < path_parameters.length() {
-    match path_parameters.get(index) {
-      Some(value) => value
-      None => Json::null()
+  section : String,
+  value : Json,
+  pointer : String,
+  out : Array[Json],
+) -> Json {
+  let resolved = raw_resolve_component(root, section, value)
+  if raw_get(value, "$ref") is String(reference) && !(resolved is Object(_)) {
+    out.push(
+      Json::object(
+        Map([
+          ("pointer", Json::string(pointer + "/$ref")),
+          ("keyword", Json::string("componentRef")),
+          ("value", Json::string(reference)),
+        ]),
+      ),
+    )
+  }
+  resolved
+}
+
+///|
+fn scan_parameter_uses(
+  root : Json,
+  parameters : Json,
+  base : String,
+  out : Array[Json],
+) -> Unit {
+  for index, value in raw_array(parameters) {
+    let pointer = base + "/parameters/" + index.to_string()
+    let resolved = scan_component_use(root, "parameters", value, pointer, out)
+    if raw_get(resolved, "content") is Object(_) {
+      out.push(
+        Json::object(
+          Map([
+            ("pointer", Json::string(pointer + "/content")),
+            ("keyword", Json::string("parameterContent")),
+            ("value", Json::null()),
+          ]),
+        ),
+      )
     }
-  } else {
-    match operation_parameters.get(index - path_parameters.length()) {
-      Some(value) => value
-      None => Json::null()
-    }
   }
-  let style = match raw_as_string(raw_get(parameter, "style")) {
-    Some(text) => Json::string(text)
-    None => Json::null()
-  }
-  let explode = match raw_boolean(raw_get(parameter, "explode")) {
-    Some(value) => Json::boolean(value)
-    None => Json::null()
-  }
-  (style, explode)
 }

@@ -16,6 +16,15 @@ The bounded V1 scope is maintained against the current candidate commit. Hosted 
 | Bounded real-world corpus | `python tools/corpus_metrics.py --json-out tests/_build/corpus-metrics/summary.json --report-out docs/CORPUS_REPORT.md`; see [CORPUS_REPORT.md](CORPUS_REPORT.md) | 5/5 real-world specs compiled; 12/12 real-world operations supported; one expected control rejection |
 | Unsupported-feature diagnostics | negative `oneOf` fixtures and phase/CLI tests | Required; no silent fallback |
 
+Local verification of the current working-tree candidate on Windows completed
+on 2026-11-25: `python -m pytest tests -q` passed 125 tests; frontend, core,
+codegen and runtime passed `moon fmt --check` and `moon check --deny-warn`; core
+passed 8 tests and runtime passed 33 tests; the bounded corpus compiled 7/7
+generated packages and 5/5 real-world specs; Petstore E-E passed all 11 checks,
+19 assertions and 12 wire requests, with 9 generated files byte-identical on
+regeneration. Hosted Ubuntu and Windows CI has not run against this uncommitted
+working-tree candidate, so cross-platform release verification remains pending.
+
 The hosted workflow is [cross-platform-ci.yml](../.github/workflows/cross-platform-ci.yml). It runs MoonBit formatting/checks, the core MoonBit test suite, determinism tests, `python -m pytest tests -q`, and the PowerShell Petstore HTTP demo on `ubuntu-latest` and `windows-latest`.
 
 ## Project Spec completion mapping

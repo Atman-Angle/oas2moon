@@ -14,7 +14,7 @@ description = "OpenAPI frontend adapter for the oas2moon MoonBit client SDK gene
 
 import {
   "Han-Wentao/mooncontract@0.1.0",
-  "moonbit-community/yaml@0.0.6",
+  "moonbit-community/yaml@0.0.10",
   "moonbitlang/x@0.4.46",
 }
 

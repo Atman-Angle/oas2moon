@@ -119,6 +119,7 @@ def test_success_json() -> None:
     assert r.returncode == 0, f"CLI failed:\n{r.stderr}"
     # Check key output files exist
     assert (out_dir / "moon.mod").is_file()
+    assert '"moonbitlang/async@0.22.10"' in (out_dir / "moon.mod").read_text(encoding="utf-8")
     assert (out_dir / "moon.pkg").is_file()
     assert (out_dir / "models.mbt").is_file()
     assert (out_dir / "runtime.mbt").is_file()
@@ -249,7 +250,7 @@ def test_concurrent_generation_uses_distinct_scratch_dirs() -> None:
     for key in sorted(h1.keys()):
         assert h1[key] == h2[key], f"concurrent runs disagreed on {key}"
 
-    leftovers = sorted(p.name for p in (ROOT / "src" / "_work").glob("generate-*"))
+    leftovers = [path for path in seen if Path(path).exists()]
     assert leftovers == [], f"scratch directories leaked: {leftovers}"
 
 

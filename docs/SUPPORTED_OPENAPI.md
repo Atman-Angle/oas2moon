@@ -8,7 +8,7 @@ This is a bounded OpenAPI 3.0.x profile, not a claim of full OpenAPI support. â€
 |---|---|
 | OpenAPI 3.0.0â€“3.0.3 JSON; common YAML | `tests/test_t10_cli.py` and generated-package compile checks |
 | Local component `$ref` | Petstore fixture and demo generation |
-| Primitive, object, array, string enum, required/optional/nullable, `additionalProperties` cases | `tests/test_t07.py`, `tests/test_response_strategy.py`, and corpus compile checks |
+| Primitive, object, array, string enum, required/optional/nullable, and `additionalProperties` wire preservation | `tests/test_t07.py`, `tests/test_response_strategy.py`, and corpus compile checks |
 | GET, POST, PUT, PATCH, DELETE | `tests/test_t07.py`, generated fixtures |
 | Path/query/header common scalar and array forms | runtime tests plus Petstore local-HTTP assertions |
 | `application/json` request bodies and JSON responses | T07 tests and Petstore demo |
@@ -24,9 +24,9 @@ This is a bounded OpenAPI 3.0.x profile, not a claim of full OpenAPI support. â€
 | Capability | Limit |
 |---|---|
 | YAML | Common YAML fixtures are covered; full YAML edge-case compatibility is not promised. |
-| `additionalProperties` with a schema | Fixture/codegen coverage exists; no real-HTTP Petstore case. |
-| `application/*+json` | Only accept it where the current normalizer classifies it as safe JSON; no broad media-type claim. |
-| HEAD transport mapping | Runtime maps HEAD, but the public supported operation profile and local-HTTP demo do not claim HEAD. |
+| Schema-valued `additionalProperties` | Preserved as `Map[String, Json]` to retain wire values. The declared value schema is not yet mapped to a typed map. |
+| JSON structured-suffix media types | Runtime response parsing accepts `+json` Content-Type values, but the generator accepts only declared `application/json` request/response content. Other declared media types are rejected with `unsupported.media_type`. |
+| HEAD transport mapping | Explicitly rejected by the V1 support validator. Runtime transport has a HEAD mapping for future use, but the public operation profile does not claim it. |
 | Bounded real-world corpus | Five local real-world specs compiled: official OAI Petstore 3.0 plus project Petstore and curated GitHub/OpenAI/JSONPlaceholder subsets. The measured 12/12 operation total is not a full-document support rate. |
 
 ## Explicitly unsupported
@@ -41,7 +41,7 @@ This is a bounded OpenAPI 3.0.x profile, not a claim of full OpenAPI support. â€
 - cookie parameters and arbitrary parameter serialization styles (including matrix, label and deepObject);
 - unclassified request/response media types.
 
-For unsupported semantics, generation must stop with a deterministic diagnostic; it must not silently emit wire behaviour known to be wrong. `Json` is a safe fallback only when the normalizer documents that actual wire behaviour is preserved. The `oneOf` negative fixture covers the no-silent-fallback rule.
+For unsupported semantics, generation must stop with a deterministic diagnostic; it must not silently emit wire behaviour known to be wrong. This includes unimplemented HTTP methods, response ranges, default-only responses, unsupported or unresolved security schemes, and authentication AND combinations that cannot be represented without overwriting headers. `Json` is a safe fallback only when the normalizer documents that actual wire behaviour is preserved. The `oneOf` negative fixture covers the no-silent-fallback rule.
 
 ## Not verified or not promised
 
@@ -74,14 +74,16 @@ duplicate enums all stop the CLI with exit code 4, a stable diagnostic
 (`unsupported.media_type`, `unsupported.ref`, `unsupported.keyword`,
 `unsupported.enum`), and no generated SDK.
 
-Int64 wire decoding is number-based and exact. A declared `integer/int64`
-response or field decodes from a JSON number, never a JSON string; integers
-within 2^53-1 are taken losslessly from the parsed value, and larger integers
-are parsed from the preserved source text so values such as `9007199254740993`
-and the Int64 bounds `Â±9223372036854775807/8` are not rounded. Out-of-range
-values, booleans, strings, and non-integral numbers fail with a structured
-decode error. Integral decimal/exponent forms (`1.0`, `1e3`) decode to their
-exact integer value, matching the `Int` decoder.
+Int64 wire decoding is number-based and exact for JSON integer literals. A
+declared `integer/int64` response or field decodes from a JSON number, never a
+JSON string; integers within 2^53-1 are taken losslessly from the parsed value,
+and larger integer literals are parsed from preserved source text so values
+such as `9007199254740993` and the Int64 bounds
+`Â±9223372036854775807/8` are not rounded. Out-of-range values, booleans,
+strings, fractions, and non-integral numeric forms fail with a structured
+decode error. Decimal and exponent spellings are evaluated from their
+preserved JSON number lexeme, so integral forms such as `1.0` and `1e3` decode
+exactly while `0.99999999999999999` is rejected rather than rounded to `1`.
 
 A non-object component schema (top-level array, primitive, or bare `$ref`)
 lowers to a transparent MoonBit type alias (`pub type Pets = Array[Pet]`), not
@@ -108,3 +110,9 @@ consumer regression in `tests/test_acceptance_regressions.py`:
   encode back to the OpenAPI bare-value/null wire form (not MoonBit's `[value]`
   Option convention), for `Int`, `String`, and `Int64` elements; request bodies
   use the same generated encoder (`test_nullable_array_items`).
+
+The production acceptance audit also has regression coverage for unsupported
+methods, response ranges and default-only responses, unsupported and unresolved
+security schemes, escaped-name reference cycles, and generated parameter
+aliases. Top-level nullable responses and the complete runtime white-box suite
+are verified by the release acceptance run.

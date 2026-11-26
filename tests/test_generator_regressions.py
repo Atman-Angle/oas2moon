@@ -24,16 +24,20 @@ def document():
     return {'openapi': '3.0.3', 'info': {'title': 'Regression', 'version': '1'},
             'components': {'schemas': {
                 'mode': {'type': 'string', 'enum': ['fast-mode', 'slow-mode']},
+                'StringList': {'type': 'array', 'items': {'type': 'string'}},
                 'foo-bar': {'type': 'object', 'required': ['first'], 'properties': {'first': {'type': 'string'}}},
                 'foo_bar': {'type': 'object', 'required': ['second'], 'properties': {'second': {'type': 'integer'}, 'nested': obj}}},
+                'parameters': {'Joined': {'name': 'aliasJoined', 'in': 'query', 'style': 'form', 'explode': False,
+                    'schema': {'$ref': '#/components/schemas/StringList'}}},
                 'securitySchemes': {'Bearer': {'type': 'http', 'scheme': 'bearer'}, 'Basic': {'type': 'http', 'scheme': 'basic'}}},
             'paths': {
                 '/inline': {'post': {'operationId': 'inlineObject', 'requestBody': {'required': True, 'content': {'application/json': {'schema': obj}}}, 'responses': {'200': schema_response(obj)}}},
                 '/ref': {'get': {'operationId': 'getRef', 'responses': {'200': schema_response({'$ref': '#/components/schemas/foo_bar'})}}},
                 '/mixed': {'get': {'operationId': 'mixed', 'responses': {'200': schema_response({'type': 'string'}), '204': {'description': 'empty'}}}},
-                '/a': {'get': {'operationId': 'getItems', 'security': [{'Bearer': []}, {'Basic': []}], 'parameters': [
+                '/a': {'parameters': [{'name': 'aliasJoined', 'in': 'query', 'schema': {'type': 'integer'}}], 'get': {'operationId': 'getItems', 'security': [{'Bearer': []}, {'Basic': []}], 'parameters': [
                     {'name': 'tags', 'in': 'query', 'required': True, 'schema': {'type': 'array', 'items': {'type': 'string'}}},
                     {'name': 'joined', 'in': 'query', 'explode': False, 'schema': {'type': 'array', 'items': {'type': 'integer'}}},
+                    {'$ref': '#/components/parameters/Joined'},
                     {'name': 'X-Mode', 'in': 'header', 'schema': {'$ref': '#/components/schemas/mode'}},
                     {'name': 'X-Count', 'in': 'header', 'schema': {'type': 'integer'}},
                     {'name': 'X-Flags', 'in': 'header', 'schema': {'type': 'array', 'items': {'type': 'boolean'}}}
@@ -97,7 +101,7 @@ def test_generated_sdk_wire_and_decode():
         ir = json.loads(ir_file.read_text(encoding='utf-8'))
         ops = {o['operation_id']: o for o in ir['operations']}
         assert ops['getItems']['security'] == [['Bearer'], ['Basic']]
-        assert ops['getItems']['parameters'][0]['explode'] is True
+        assert next(p for p in ops['getItems']['parameters'] if p['wire_name'] == 'tags')['explode'] is True
         assert ops['getRef']['response_strategy']['type']['name'] == 'FooBar_2'
         assert ops['inlineObject']['response_strategy']['type']['name'] == 'Json'
         assert ops['getItems']['fn_name'] != ops['get-items']['fn_name']
@@ -110,7 +114,7 @@ async test "real HTTP regression matrix" {
   let c = Client::new(bearer_token="token")
   assert_eq(c.config.base_path(), "/api")
   assert_eq(Client::new(base_url="http://override/other").config.origin(), "http://override")
-  assert_eq(c.get_items(["a", "b"], joined=[1, 2], x_count=42, x_mode=Mode::FastMode, x_flags=[true, false]), "ok")
+  assert_eq(c.get_items(["a", "b"], joined=[1, 2], alias_joined=["c", "d"], x_count=42, x_mode=Mode::FastMode, x_flags=[true, false]), "ok")
   let ref_value = c.get_ref()
   assert_eq(ref_value.second, 42)
   assert_eq(ref_value.nested.unwrap(), { "id": 1 })
@@ -147,7 +151,7 @@ async test "all alternatives missing fails before transport" {
             checked = run(cmd, out)
             assert checked.returncode == 0, checked.stdout + checked.stderr
         first = requests[0]
-        assert first[0] == '/api/a?tags=a&tags=b&joined=1,2'
+        assert first[0] == '/api/a?tags=a&tags=b&aliasJoined=c,d&joined=1,2'
         assert first[1]['X-Count'] == '42' and first[1]['X-Flags'] == 'true,false'
         assert first[1]['X-Mode'] == 'fast-mode'
         assert first[1]['Authorization'] == 'Bearer token'

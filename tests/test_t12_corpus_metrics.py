@@ -232,3 +232,28 @@ def test_metrics_output_is_byte_deterministic() -> None:
         assert not re.search(r"\b20\d\d-\d\d-\d\d\b", text), (
             "metrics output contains a timestamp"
         )
+
+
+def test_adapter_failure_returns_nonzero() -> None:
+    """A recorded adapter error must fail callers that gate only on exit code."""
+    work = fresh_dir("adapter-failure")
+    broken = work / "broken.json"
+    broken.write_text("{ invalid", encoding="utf-8")
+    manifest = write_manifest(
+        work / "sources.json",
+        [
+            {
+                "id": "control/broken-input",
+                "kind": "local",
+                "role": "control",
+                "path": broken.relative_to(ROOT).as_posix(),
+                "origin": "test",
+                "license": "test",
+            }
+        ],
+    )
+    out = work / "summary.json"
+    completed = run_metrics("--manifest", str(manifest), "--json-out", str(out))
+    assert completed.returncode != 0, completed.stdout + completed.stderr
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    assert payload["specs"][0]["status"] == "adapter_error"

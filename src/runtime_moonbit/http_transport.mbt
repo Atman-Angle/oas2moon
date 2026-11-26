@@ -7,6 +7,28 @@
 /// `CaptureTransport` (unit tests) or delegates here through `transmit`.
 
 ///|
+/// Convert the runtime's string-keyed headers into async/http's
+/// case-insensitive header map at the transport boundary.
+fn to_http_headers(headers : Map[String, String]) -> @http.Headers {
+  let out : @http.Headers = Map([])
+  for key, value in headers {
+    out[key] = value
+  }
+  out
+}
+
+///|
+/// Convert async/http response headers back to the runtime's stable public
+/// representation so generated clients do not depend on the transport type.
+fn from_http_headers(headers : @http.Headers) -> Map[String, String] {
+  let out : Map[String, String] = Map([])
+  for key, value in headers {
+    out[key.to_string()] = value
+  }
+  out
+}
+
+///|
 /// Map the canonical HTTP method string onto the async HTTP client enum.
 ///
 /// The generator only emits methods from the V1 profile; anything outside it
@@ -37,7 +59,7 @@ fn request_method(
 /// Returns `""` when there is nothing to encode and `"?k=v&k2=v2"` otherwise.
 pub fn render_query(
   params : Array[(String, String)],
-  joined? : Array[(String, Array[String])] = [],
+  joined~ : Array[(String, Array[String])] = [],
 ) -> String {
   if params.length() == 0 && joined.length() == 0 {
     return ""
@@ -66,7 +88,7 @@ pub fn render_query(
 pub async fn transmit(
   config : Config,
   request : Request,
-  operation_id? : String = "",
+  operation_id~ : String = "",
 ) -> Response raise SdkError {
   let target = config.base_path() +
     request.path +
@@ -77,12 +99,15 @@ pub async fn transmit(
       headers["Content-Length"] = @utf8.encode(text).length().to_string()
     None => ()
   }
-  try {
-    let client = @http.Client::Client(config.origin)
+  let http_headers = to_http_headers(headers)
+  let client = @http.Client::Client(config.origin) catch {
+    err => raise Transport(operation_id, err.to_string())
+  }
+  let result = try {
     client.request(
       request_method(request.http_method, operation_id),
       target,
-      extra_headers=headers,
+      extra_headers=http_headers,
     )
     match request.body {
       Some(text) => client.write(text)
@@ -94,9 +119,17 @@ pub async fn transmit(
     } else {
       client.read_all().text()
     }
-    client.close()
-    { status: response.code, headers: response.headers, body, }
+    {
+      status: response.code,
+      headers: from_http_headers(response.headers),
+      body,
+    }
   } catch {
-    err => raise Transport(operation_id, err.to_string())
+    err => {
+      client.close()
+      raise Transport(operation_id, err.to_string())
+    }
   }
+  client.close()
+  result
 }

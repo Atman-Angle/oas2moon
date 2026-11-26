@@ -168,6 +168,157 @@ def test_json_media_and_valid_enum_still_generate():
     assert (out / "models.mbt").exists()
 
 
+@pytest.mark.parametrize(
+    "label,paths,components,code,pointer",
+    [
+        ("method-options", {"/x": {"options": {"operationId": "optionsX", "responses": {"204": {"description": "ok"}}}}}, None, "unsupported.method", "/options"),
+        ("response-range", {"/x": {"get": op(responses={"2XX": json_response({"type": "string"})})}}, None, "unsupported.response_status", "/responses/2XX"),
+        ("response-default-only", {"/x": {"get": op(responses={"default": json_response({"type": "string"})})}}, None, "unsupported.response_status", "/responses/default"),
+        ("auth-cookie", {"/x": {"get": {**op(responses={"200": json_response({"type": "string"})}), "security": [{"CookieKey": []}]}}}, {"securitySchemes": {"CookieKey": {"type": "apiKey", "in": "cookie", "name": "sid"}}}, "unsupported.auth", "CookieKey"),
+        ("auth-oauth", {"/x": {"get": {**op(responses={"200": json_response({"type": "string"})}), "security": [{"OAuth": []}]}}}, {"securitySchemes": {"OAuth": {"type": "oauth2", "flows": {}}}}, "unsupported.auth", "OAuth"),
+        ("auth-missing", {"/x": {"get": {**op(responses={"200": json_response({"type": "string"})}), "security": [{"Typo": []}]}}}, None, "unsupported.auth", "Typo"),
+        ("auth-and-overwrite", {"/x": {"get": {**op(responses={"200": json_response({"type": "string"})}), "security": [{"Bearer": [], "Basic": []}]}}}, {"securitySchemes": {"Bearer": {"type": "http", "scheme": "bearer"}, "Basic": {"type": "http", "scheme": "basic"}}}, "unsupported.auth", "/security"),
+        ("auth-multiple-api-keys", {"/x": {"get": {**op(responses={"200": json_response({"type": "string"})}), "security": [{"First": [], "Second": []}]}}}, {"securitySchemes": {"First": {"type": "apiKey", "in": "header", "name": "X-First"}, "Second": {"type": "apiKey", "in": "query", "name": "second"}}}, "unsupported.auth", "/security"),
+    ],
+)
+def test_audit_unsupported_semantics_rejected(label, paths, components, code, pointer):
+    doc = spec("audit", paths)
+    if components is not None:
+        doc["components"] = components
+    result, out = generate(doc, label)
+    assert result.returncode == 4, result.stderr
+    assert code in result.stderr, result.stderr
+    assert pointer in result.stderr, result.stderr
+    assert not (out / "client.mbt").exists()
+
+
+def test_audit_cycle_with_escaped_component_name_rejected():
+    doc = spec(
+        "cycle",
+        {"/x": {"get": op(responses={"200": json_response({"$ref": "#/components/schemas/foo~1bar"})})}},
+        schemas={
+            "foo/bar": {"type": "object", "properties": {"next": {"$ref": "#/components/schemas/baz"}}},
+            "baz": {"type": "object", "properties": {"next": {"$ref": "#/components/schemas/foo~1bar"}}},
+        },
+    )
+    result, out = generate(doc, "cycle-escaped-name")
+    assert result.returncode == 4, result.stderr
+    assert "unsupported.ref" in result.stderr
+    assert not (out / "client.mbt").exists()
+
+
+def test_component_parameter_aliases_encode_over_http():
+    observed = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_GET(self):
+            observed.append(self.path)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'"ok"')
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        doc = spec(
+            "aliases",
+            {
+                "/x/{id}": {
+                    "get": {
+                        "operationId": "getX",
+                        "parameters": [
+                            {"name": "id", "in": "path", "required": True, "schema": {"$ref": "#/components/schemas/Mode"}},
+                            {"name": "count", "in": "query", "required": True, "schema": {"$ref": "#/components/schemas/Count"}},
+                            {"name": "maybe", "in": "query", "required": True, "schema": {"type": "string", "nullable": True}},
+                        ],
+                        "responses": {"200": json_response({"type": "string"})},
+                    }
+                }
+            },
+            schemas={
+                "Count": {"type": "integer"},
+                "Mode": {"type": "string", "enum": ["fast mode", "slow"]},
+            },
+        )
+        doc["servers"] = [{"url": "http://127.0.0.1:%d" % server.server_port}]
+        result, out = generate(doc, "parameter-alias-wire")
+        assert result.returncode == 0, result.stderr
+        (out / "alias_wbtest.mbt").write_text('''///|
+async test "component parameter aliases encode their wire values" {
+  let client = Client::new()
+  assert_eq(client.get_x(Mode::FastMode, 42, Null), "ok")
+}
+''', encoding="utf-8")
+        pkg = out / "moon.pkg"
+        pkg.write_text(pkg.read_text(encoding="utf-8")
+                       + '\nimport { "moonbitlang/async", } for "wbtest"\n', encoding="utf-8")
+        for cmd in (["moon", "fmt"],
+                    ["moon", "check", "--target", "native", "--deny-warn"],
+                    ["moon", "test", "--target", "native", "--deny-warn"]):
+            checked = run(cmd, out)
+            assert checked.returncode == 0, checked.stdout + checked.stderr
+        assert observed == ["/x/fast%20mode?count=42&maybe=null"], observed
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
+def test_empty_closed_object_generates_json_codecs():
+    doc = spec(
+        "empty-closed-object",
+        {
+            "/empty": {
+                "get": op(
+                    operation_id="getEmpty",
+                    responses={"200": json_response({"$ref": "#/components/schemas/Empty"})},
+                )
+            }
+        },
+        schemas={"Empty": {"type": "object", "additionalProperties": False}},
+    )
+    result, out = generate(doc, "empty-closed-object")
+    assert result.returncode == 0, result.stderr
+    models = (out / "models.mbt").read_text(encoding="utf-8")
+    assert "pub impl ToJson for Empty" in models
+    assert "pub impl FromJson for Empty" in models
+
+    (out / "empty_wbtest.mbt").write_text('''///|
+async test "empty closed object codecs" {
+  let valid = Client::new(
+    capture=CaptureTransport::new(Response::new(200, body="{}")),
+  )
+  let value = valid.get_empty()
+  assert_eq(value, Empty::new())
+  assert_eq(value.to_json().stringify(), "{}")
+
+  let invalid = Client::new(
+    capture=CaptureTransport::new(Response::new(200, body="{\\"extra\\":1}")),
+  )
+  try {
+    ignore(invalid.get_empty())
+    fail("closed empty object accepted an unknown property")
+  } catch {
+    Decode(_, _) => ()
+    _ => fail("unexpected error for unknown property")
+  }
+}
+''', encoding="utf-8")
+    pkg = out / "moon.pkg"
+    pkg.write_text(pkg.read_text(encoding="utf-8")
+                   + '\nimport { "moonbitlang/async", } for "wbtest"\n', encoding="utf-8")
+    for cmd in (["moon", "fmt"],
+                ["moon", "check", "--target", "native", "--deny-warn"],
+                ["moon", "test", "--target", "native", "--deny-warn"]):
+        checked = run(cmd, out)
+        assert checked.returncode == 0, checked.stdout + checked.stderr
+
+
 # ── Int64 precision and type rejection through the generated client ──────
 
 # (raw JSON body, expected Int64 value or None for a required decode error)
@@ -183,6 +334,13 @@ INT64_CASES = [
     ("-9223372036854775809", None),            # min - 1
     ("1.0", 1),                                # integral decimal
     ("1e3", 1000),                             # integral exponent
+    ("0e2147483648", 0),
+    ("1e-2147483648", None),
+    ("0." + "0" * 1000 + "1e1001", 1),
+    ("9.223372036854775807e18", 9223372036854775807),
+    ("1.5e1", 15),                             # decimal shifted by exponent
+    ("1.00000000000000001", None),              # must not round to 1
+    ("0.99999999999999999", None),              # must not round to 1
     ("true", None),                            # boolean
     ('"9007199254740993"', None),               # JSON string must be rejected
 ]
@@ -200,7 +358,7 @@ def test_int64_wire_decode():
         def do_GET(self):
             seen.append(self.path)
             if self.path.endswith("/thing"):
-                body = b'{"id":9007199254740993}'
+                body = b'{"id":9.007199254740993e15}'
             else:
                 body = bodies[state["i"]].encode()
                 state["i"] += 1

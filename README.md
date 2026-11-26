@@ -74,6 +74,20 @@ pwsh -NoProfile -File demo/petstore/run_demo.ps1
 
 The demo runs the product CLI, adds test-only CaptureTransport tests, runs `moon fmt`, `moon check`, and `moon test`, then has a generated MoonBit client perform CRUD, response-enum, media-mismatch, authentication, and error-path calls to the local fixture server. It also compares two fresh SDK trees byte-for-byte. See [`demo/petstore/README.md`](demo/petstore/README.md) for artifacts and manual stages.
 
+The CLI accepts `generate INPUT --module MODULE --out DIRECTORY` and the optional
+`--ir-out FILE` flag. Its exit codes are `0` for success, `1` for a missing or
+unsupported input file, `2` for an invalid module name, `3` for a frontend parse
+or OpenAPI version error, `4` for a deterministic unsupported-feature
+diagnostic, `5` for an IR/codegen/runtime pipeline failure, and `6` when the
+output path is an existing file. Generation owns the files in the output
+directory and removes stale generated files before writing a new package.
+
+Generated clients expose `Client::new` with optional base URL, Bearer, Basic,
+and API-key credentials. Operations raise `SdkError`, whose variants preserve
+transport, HTTP status, decode, unsupported-media-type, and authentication
+failures. The runtime package defines the transport-neutral `Request` and
+`Response` boundary plus `CaptureTransport` for generated-package tests.
+
 ## Evidence-backed status
 
 The following are evidence claims, not broad compatibility promises:

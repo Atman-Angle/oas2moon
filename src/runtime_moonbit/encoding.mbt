@@ -24,7 +24,7 @@ fn is_unreserved_byte(byte : Byte) -> Bool {
 /// Reserved characters and non-ASCII bytes are encoded as %XX.
 /// Unreserved characters (A-Z, a-z, 0-9, -, ., _, ~) pass through.
 pub fn percent_encode(value : String) -> String {
-  let out = StringBuilder(size_hint=value.length() * 3)
+  let out = StringBuilder(capacity=value.length() * 3)
   for byte in @utf8.encode(value) {
     if is_unreserved_byte(byte) {
       out.write_char(byte.to_char())

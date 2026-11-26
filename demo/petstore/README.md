@@ -12,7 +12,7 @@ wire contract is violated.
 
 | Tool | Notes |
 |------|-------|
-| MoonBit toolchain (`moon`) | Fetches `moonbitlang/async@0.20.2` |
+| MoonBit toolchain (`moon`) | Fetches `moonbitlang/async@0.22.10` |
 | Python 3.12+ (`python`) | Runs the CLI, the fixture server, and the test emitter |
 | PowerShell 7 (`pwsh`) | Runs the orchestrator |
 

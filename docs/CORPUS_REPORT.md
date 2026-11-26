@@ -6,7 +6,7 @@ Only measured values appear here — pending sources are listed as pending.
 Regenerate with:
 
 ```pwsh
-python tools/corpus_metrics.py --json-out tests/_build/corpus-metrics/summary.json --report-out docs/CORPUS_REPORT.md
+python tools/corpus_metrics.py --json-out tests/_build/corpus-metrics/summary.json --report-out tests/_build/corpus-metrics/report.md
 ```
 
 Metric definitions and granularity caveats: the module docstring in

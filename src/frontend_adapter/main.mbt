@@ -222,6 +222,121 @@ fn schema_to_json(schema : @openapi.Schema) -> Json {
 }
 
 ///|
+/// Resolve one local component object from the raw sidecar. MoonContract keeps
+/// component refs on Parameter/BodySpec/ResponseSpec as ref_path metadata, so
+/// this small lookup restores the referenced object's wire fields without
+/// duplicating OpenAPI parsing.
+fn raw_component(root : Json, section : String, name : String) -> Json {
+  raw_get(raw_get(raw_get(root, "components"), section), name)
+}
+
+///|
+fn raw_resolve_component(root : Json, section : String, value : Json) -> Json {
+  let prefix = "#/components/" + section + "/"
+  let seen : Map[String, Bool] = Map([])
+  let mut resolved = value
+  while raw_as_string(raw_get(resolved, "$ref")) is Some(reference) {
+    if seen.contains(reference) {
+      return Json::null()
+    }
+    seen[reference] = true
+    match reference.strip_prefix(prefix) {
+      Some(name) =>
+        resolved = raw_component(
+          root,
+          section,
+          name
+          .to_owned()
+          .replace_all(old="~1", new="/")
+          .replace_all(old="~0", new="~"),
+        )
+      None => return Json::null()
+    }
+  }
+  resolved
+}
+
+///|
+fn raw_schema_to_json(schema : Json) -> Json {
+  let properties = match raw_as_object(raw_get(schema, "properties")) {
+    Some(entries) => {
+      let names : Array[String] = []
+      for name, _ in entries {
+        names.push(name)
+      }
+      object_with_sorted_keys(sort_keys(names), name => {
+        raw_schema_to_json(entries[name])
+      })
+    }
+    None => Json::object(Map([]))
+  }
+  let items = match raw_get(schema, "items") {
+    Null => Json::null()
+    value => raw_schema_to_json(value)
+  }
+  let kind = raw_as_string(raw_get(schema, "type")).unwrap_or("any")
+  Json::object(
+    Map([
+      ("kind", Json::string(kind)),
+      ("ref", raw_get(schema, "$ref")),
+      ("format", raw_get(schema, "format")),
+      (
+        "nullable",
+        Json::boolean(raw_boolean(raw_get(schema, "nullable")).unwrap_or(false)),
+      ),
+      (
+        "required",
+        match raw_get(schema, "required") {
+          Array(values) => Json::array(values)
+          _ => Json::array([])
+        },
+      ),
+      ("properties", properties),
+      ("items", items),
+      (
+        "enum",
+        match raw_get(schema, "enum") {
+          Array(values) => Json::array(values)
+          _ => Json::array([])
+        },
+      ),
+      (
+        "additionalProperties",
+        match raw_get(schema, "additionalProperties") {
+          True => Json::boolean(true)
+          _ => Json::boolean(false)
+        },
+      ),
+    ]),
+  )
+}
+
+///|
+fn raw_parameter_at(
+  root : Json,
+  path : String,
+  http_method : String,
+  index : Int32,
+) -> Json {
+  let path_parameters = raw_array(
+    raw_get(raw_get(raw_get(root, "paths"), path), "parameters"),
+  )
+  let operation_parameters = raw_array(
+    raw_get(
+      raw_get(raw_get(raw_get(root, "paths"), path), http_method.to_lower()),
+      "parameters",
+    ),
+  )
+  if index < path_parameters.length() {
+    path_parameters[index]
+  } else {
+    operation_parameters
+    .get(index - path_parameters.length())
+    .unwrap_or(Json::null())
+  }
+}
+
+///|
 fn parameter_to_json(
   parameter : @openapi.Parameter,
   index : Int32,
@@ -229,18 +344,32 @@ fn parameter_to_json(
   path : String,
   http_method : String,
 ) -> Json {
-  let (style, explode) = raw_parameter_serialization(
-    root, path, http_method, index,
+  let source = raw_parameter_at(root, path, http_method, index)
+  let raw_parameter = raw_resolve_component(root, "parameters", source)
+  let raw_name = raw_as_string(raw_get(raw_parameter, "name")).unwrap_or(
+    parameter.name,
   )
+  let raw_location = raw_as_string(raw_get(raw_parameter, "in")).unwrap_or(
+    parameter.location.label(),
+  )
+  let raw_required = match raw_get(raw_parameter, "required") {
+    True => true
+    _ => parameter.required
+  }
+  let raw_schema = if parameter.ref_path is Some(_) {
+    raw_schema_to_json(raw_get(raw_parameter, "schema"))
+  } else {
+    schema_to_json(parameter.schema)
+  }
   Json::object(
     Map([
-      ("name", Json::string(parameter.name)),
-      ("in", Json::string(parameter.location.label())),
-      ("required", Json::boolean(parameter.required)),
-      ("schema", schema_to_json(parameter.schema)),
+      ("name", Json::string(raw_name)),
+      ("in", Json::string(raw_location)),
+      ("required", Json::boolean(raw_required)),
+      ("schema", raw_schema),
       ("ref", string_or_null(parameter.ref_path)),
-      ("style", style),
-      ("explode", explode),
+      ("style", string_or_null(raw_as_string(raw_get(raw_parameter, "style")))),
+      ("explode", raw_get(raw_parameter, "explode")),
     ]),
   )
 }
@@ -252,6 +381,39 @@ fn body_to_json(body : @openapi.BodySpec) -> Json {
       ("required", Json::boolean(body.required)),
       ("media_type", Json::string(body.media_type)),
       ("schema", schema_to_json(body.schema)),
+    ]),
+  )
+}
+
+///|
+fn raw_body_to_json(body : Json, fallback : @openapi.BodySpec) -> Json {
+  let resolved = body
+  let required = match raw_get(resolved, "required") {
+    True => true
+    _ => fallback.required
+  }
+  let content = raw_get(resolved, "content")
+  let media = match raw_as_object(content) {
+    Some(entries) =>
+      match entries.get("application/json") {
+        Some(_) => "application/json"
+        None => "application/*+json"
+      }
+    None => fallback.media_type
+  }
+  let media_node = raw_get(raw_get(content, media), "schema")
+  Json::object(
+    Map([
+      ("required", Json::boolean(required)),
+      ("media_type", Json::string(media)),
+      (
+        "schema",
+        if media_node is Null {
+          schema_to_json(fallback.schema)
+        } else {
+          raw_schema_to_json(media_node)
+        },
+      ),
     ]),
   )
 }
@@ -273,6 +435,42 @@ fn response_to_json(response : @openapi.ResponseSpec) -> Json {
 }
 
 ///|
+fn raw_response_to_json(
+  response : Json,
+  fallback : @openapi.ResponseSpec,
+) -> Json {
+  let content = raw_get(response, "content")
+  let media_node = raw_get(raw_get(content, "application/json"), "schema")
+  let schema = if media_node is Null {
+    Json::null()
+  } else {
+    raw_schema_to_json(media_node)
+  }
+  Json::object(
+    Map([
+      ("status", Json::string(fallback.status)),
+      (
+        "description",
+        Json::string(
+          raw_as_string(raw_get(response, "description")).unwrap_or(
+            fallback.description,
+          ),
+        ),
+      ),
+      (
+        "media_type",
+        if media_node is Null {
+          Json::null()
+        } else {
+          Json::string("application/json")
+        },
+      ),
+      ("schema", schema),
+    ]),
+  )
+}
+
+///|
 fn operation_to_json(
   operation : @openapi.Operation,
   security : Array[Json],
@@ -280,22 +478,61 @@ fn operation_to_json(
 ) -> Json {
   let parameters : Array[Json] = []
   for index, parameter in operation.parameters {
-    parameters.push(
-      parameter_to_json(
-        parameter,
-        index,
-        root,
-        operation.path,
-        operation.http_method.label(),
-      ),
+    let normalized = parameter_to_json(
+      parameter,
+      index,
+      root,
+      operation.path,
+      operation.http_method.label(),
     )
+    let inherited_index = for position, existing in parameters {
+      if raw_get(existing, "name") == raw_get(normalized, "name") &&
+        raw_get(existing, "in") == raw_get(normalized, "in") {
+        break Some(position)
+      }
+    } nobreak {
+      None
+    }
+    match inherited_index {
+      Some(position) => parameters[position] = normalized
+      None => parameters.push(normalized)
+    }
   }
   let responses : Array[Json] = []
   for response in operation.responses {
-    responses.push(response_to_json(response))
+    let raw_responses = raw_get(
+      raw_get(
+        raw_get(raw_get(root, "paths"), operation.path),
+        operation.http_method.label().to_lower(),
+      ),
+      "responses",
+    )
+    let raw_value = raw_get(raw_responses, response.status)
+    let resolved = raw_resolve_component(root, "responses", raw_value)
+    responses.push(
+      if raw_get(raw_value, "$ref") is String(_) && resolved is Object(_) {
+        raw_response_to_json(resolved, response)
+      } else {
+        response_to_json(response)
+      },
+    )
   }
   let body = match operation.request_body {
-    Some(value) => body_to_json(value)
+    Some(value) => {
+      let raw_body = raw_get(
+        raw_get(
+          raw_get(raw_get(root, "paths"), operation.path),
+          operation.http_method.label().to_lower(),
+        ),
+        "requestBody",
+      )
+      let resolved = raw_resolve_component(root, "requestBodies", raw_body)
+      if raw_get(raw_body, "$ref") is String(_) && resolved is Object(_) {
+        raw_body_to_json(resolved, value)
+      } else {
+        body_to_json(value)
+      }
+    }
     None => Json::null()
   }
   Json::object(
@@ -315,7 +552,16 @@ fn operation_to_json(
 /// Whether a path names a YAML document. YAML is a convenience input; JSON stays
 /// the authoritative format.
 fn is_yaml_path(path : String) -> Bool {
-  path.has_suffix(".yaml") || path.has_suffix(".yml")
+  let lower = path.to_lower()
+  lower.has_suffix(".yaml") || lower.has_suffix(".yml")
+}
+
+///|
+fn supported_openapi_version(version : String) -> Bool {
+  version == "3.0.0" ||
+  version == "3.0.1" ||
+  version == "3.0.2" ||
+  version == "3.0.3"
 }
 
 ///|
@@ -340,6 +586,15 @@ fn main raise {
   let source = @fs.read_file_to_string(args[1])
   let yaml_input = is_yaml_path(args[1])
   let raw = if yaml_input { raw_from_yaml(source) } else { @json.parse(source) }
+  let version = raw_as_string(raw_get(raw, "openapi")).unwrap_or("")
+  if !supported_openapi_version(version) {
+    println(
+      "error[unsupported.version] /openapi: expected OpenAPI 3.0.0 through 3.0.3, got " +
+      version,
+    )
+    @sys.exit(3)
+    return
+  }
   let parsed = if yaml_input {
     @openapi.parse_yaml(source)
   } else {
