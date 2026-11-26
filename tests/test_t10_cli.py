@@ -249,7 +249,7 @@ def test_concurrent_generation_uses_distinct_scratch_dirs() -> None:
     for key in sorted(h1.keys()):
         assert h1[key] == h2[key], f"concurrent runs disagreed on {key}"
 
-    leftovers = sorted(p.name for p in (ROOT / "src" / "_work").glob("generate-*"))
+    leftovers = [path for path in seen if Path(path).exists()]
     assert leftovers == [], f"scratch directories leaked: {leftovers}"
 
 

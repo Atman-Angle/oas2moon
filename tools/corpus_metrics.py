@@ -436,6 +436,12 @@ def main(argv: list[str] | None = None) -> int:
         target = Path(args.report_out)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(render_report(summary, records), encoding="utf-8")
+    if any(
+        record.get("status") in {"adapter_error", "cli_error"}
+        or record.get("compile_pass") is False
+        for record in records
+    ):
+        return 1
     return 0
 
 

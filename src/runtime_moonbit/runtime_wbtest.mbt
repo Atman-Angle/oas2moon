@@ -214,7 +214,7 @@ test "unsupported auth scheme raises Configuration error" {
 ///|
 test "decode_json raises Decode error on invalid JSON" {
   let response = Response::new(200, body="{invalid")
-  let _ : Int = (decode_json(response, operation_id="get_pet") : Int) catch {
+  let _ : Int32 = (decode_json(response, operation_id="get_pet") : Int32) catch {
     Decode(op, _) => {
       assert_eq(op, "get_pet")
       0
@@ -226,7 +226,7 @@ test "decode_json raises Decode error on invalid JSON" {
 ///|
 test "decode_json raises Decode error on type mismatch" {
   let response = Response::new(200, body="\"hello\"")
-  let _ : Int = (decode_json(response, operation_id="get_pet") : Int) catch {
+  let _ : Int32 = (decode_json(response, operation_id="get_pet") : Int32) catch {
     Decode(op, _) => {
       assert_eq(op, "get_pet")
       0
@@ -242,7 +242,7 @@ test "decode_json rejects unsupported response media type" {
     headers=Map([("Content-Type", "text/plain")]),
     body="1",
   )
-  let _ : Int = (decode_json(response, operation_id="get_raw") : Int) catch {
+  let _ : Int32 = (decode_json(response, operation_id="get_raw") : Int32) catch {
     Unsupported(op, msg) => {
       assert_eq(op, "get_raw")
       let _ = msg.contains("text/plain")
@@ -259,7 +259,7 @@ test "decode_json accepts JSON media type parameters and suffixes" {
     headers=Map([("Content-Type", "application/json; charset=utf-8")]),
     body="1",
   )
-  let parsed : Int = decode_json(with_charset, operation_id="get_one")
+  let parsed : Int32 = decode_json(with_charset, operation_id="get_one")
   assert_eq(parsed, 1)
 
   let problem_json = Response::new(
@@ -267,7 +267,7 @@ test "decode_json accepts JSON media type parameters and suffixes" {
     headers=Map([("content-type", "application/problem+json")]),
     body="2",
   )
-  let parsed_problem : Int = decode_json(problem_json, operation_id="get_two")
+  let parsed_problem : Int32 = decode_json(problem_json, operation_id="get_two")
   assert_eq(parsed_problem, 2)
 }
 

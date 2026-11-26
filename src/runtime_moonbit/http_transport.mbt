@@ -37,7 +37,7 @@ fn request_method(
 /// Returns `""` when there is nothing to encode and `"?k=v&k2=v2"` otherwise.
 pub fn render_query(
   params : Array[(String, String)],
-  joined? : Array[(String, Array[String])] = [],
+  joined~ : Array[(String, Array[String])] = [],
 ) -> String {
   if params.length() == 0 && joined.length() == 0 {
     return ""
@@ -66,7 +66,7 @@ pub fn render_query(
 pub async fn transmit(
   config : Config,
   request : Request,
-  operation_id? : String = "",
+  operation_id~ : String = "",
 ) -> Response raise SdkError {
   let target = config.base_path() +
     request.path +
@@ -77,8 +77,10 @@ pub async fn transmit(
       headers["Content-Length"] = @utf8.encode(text).length().to_string()
     None => ()
   }
-  try {
-    let client = @http.Client::Client(config.origin)
+  let client = @http.Client::Client(config.origin) catch {
+    err => raise Transport(operation_id, err.to_string())
+  }
+  let result = try {
     client.request(
       request_method(request.http_method, operation_id),
       target,
@@ -94,9 +96,13 @@ pub async fn transmit(
     } else {
       client.read_all().text()
     }
-    client.close()
     { status: response.code, headers: response.headers, body, }
   } catch {
-    err => raise Transport(operation_id, err.to_string())
+    err => {
+      client.close()
+      raise Transport(operation_id, err.to_string())
+    }
   }
+  client.close()
+  result
 }

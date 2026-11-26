@@ -23,10 +23,9 @@ let reserved : Map[String, Bool] = {
   // runtime, or the MoonBit core. A component schema whose name pascalizes to
   // one of these would otherwise emit a duplicate type that fails moon check.
   let type_names = [
-    "Client", "Config", "Presence", "Request", "Response", "SdkError",
-    "CaptureTransport", "JPath", "JErr",
-    "String", "Int", "Int32", "Int64", "UInt", "UInt32", "UInt64", "Bool",
-    "Double", "Float", "Json", "Unit", "Char", "Byte", "Array", "Map", "Option",
+    "Client", "Config", "Presence", "Request", "Response", "SdkError", "CaptureTransport",
+    "JPath", "JErr", "String", "Int", "Int32", "Int64", "UInt", "UInt32", "UInt64",
+    "Bool", "Double", "Float", "Json", "Unit", "Char", "Byte", "Array", "Map", "Option",
     "Result", "StringBuilder",
   ]
   for tn in type_names {
@@ -162,7 +161,10 @@ pub fn words(name : String) -> Array[String] {
 /// Convert to snake_case.
 pub fn snake(name : String) -> String {
   let parts = words(name)
-  let candidate = join_words(parts, "_")
+  let mut candidate = join_words(parts, "_")
+  if is_digit(first_char(candidate)) {
+    candidate = "n_" + candidate
+  }
   if reserved.contains(candidate) {
     candidate + "_"
   } else {
@@ -179,6 +181,9 @@ pub fn pascal(name : String) -> String {
     if part.length() > 0 {
       candidate = candidate + first_upper(part)
     }
+  }
+  if is_digit(first_char(candidate)) {
+    candidate = "N" + candidate
   }
   if reserved.contains(candidate) {
     candidate + "Value"

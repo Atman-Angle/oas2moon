@@ -107,31 +107,44 @@ supported_targets = "+native"
 """
 
 
-def _copy_runtime_files(out_dir: Path) -> None:
-    """Copy runtime MBT sources into the generated output directory."""
+def _copy_runtime_files(out_dir: Path, include_operations: bool) -> None:
+    """Copy runtime sources required by the generated package."""
     for name in _RUNTIME_FILES:
+        if name == "http_transport.mbt" and not include_operations:
+            continue
         src = _RUNTIME_DIR / name
         if src.is_file():
             shutil.copy2(str(src), str(out_dir / name))
 
 
-def _ensure_string_import(out_dir: Path) -> None:
-    """Guarantee the ``string`` import that the copied runtime always needs.
+def _remove_stale_generated_files(out_dir: Path) -> None:
+    """Remove files owned by a previous generation before writing new output."""
+    for name in ("client.mbt", "models.mbt", "moon.mod", "moon.pkg", *_RUNTIME_FILES):
+        path = out_dir / name
+        if path.is_file():
+            path.unlink()
 
-    Codegen emits the ``string`` import only when a generated model uses Int64,
-    but the runtime's top-level Int64 decoder (``decode_int64``) always parses
-    number source text via ``@string``. Insert it at the end of the first import
-    block so the fixed, deterministic import order is preserved.
+
+def _ensure_string_import(out_dir: Path) -> None:
+    """Add imports required by the copied runtime sources.
+
+    The runtime's Int64 decoder always uses ``@string`` and its encoding module
+    uses ``@utf8``. Insert missing imports in a fixed order.
     """
     pkg = out_dir / "moon.pkg"
     text = pkg.read_text(encoding="utf-8")
-    if '"moonbitlang/core/string"' in text:
-        return
     match = re.search(r"import\s*\{.*?\}", text, re.DOTALL)
     if match is None:
         return
     block = match.group(0)
-    new_block = block[:-1] + '  "moonbitlang/core/string",\n}'
+    imports = []
+    if '"moonbitlang/core/encoding/utf8"' not in block:
+        imports.append('  "moonbitlang/core/encoding/utf8",\n')
+    if '"moonbitlang/core/string"' not in block:
+        imports.append('  "moonbitlang/core/string",\n')
+    if not imports:
+        return
+    new_block = block[:-1] + "".join(imports) + "}"
     pkg.write_text(text[:match.start()] + new_block + text[match.end():],
                    encoding="utf-8")
 
@@ -301,6 +314,8 @@ def cmd_generate(args: argparse.Namespace) -> int:
             print(f"error: failed to parse canonical IR: {exc}", file=sys.stderr)
             return 5
 
+        _remove_stale_generated_files(out_dir)
+
         # ── Step 3: Codegen ─────────────────────────────────────
         step = "codegen: canonical IR → MoonBit SDK"
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -315,7 +330,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
 
         # ── Step 4: Copy runtime files ──────────────────────────
         step = "runtime: copy runtime sources"
-        _copy_runtime_files(out_dir)
+        _copy_runtime_files(out_dir, include_operations=bool(api.get("operations")))
         _ensure_string_import(out_dir)
         print(_step_label(step, True), file=sys.stderr)
 

@@ -66,38 +66,48 @@ pub fn ref_target(ref_path : String) -> String {
 pub fn map_schema(
   schema : Json,
   names~ : Map[String, String] = Map([]),
+  nullable_refs~ : Map[String, Bool] = Map([]),
 ) -> TypeRef {
   let ref_path = text(get(schema, "ref"))
-  if ref_path != "" {
-    let name = names.get(ref_path).unwrap_or(ref_target(ref_path))
-    return Named(name)
-  }
   let kind = text(get(schema, "kind"))
-  if kind == "array" {
-    let items = get(schema, "items")
-    let item_type = map_schema(items, names~)
-    if truth(get(items, "nullable")) {
-      return Array(Nullable(item_type))
+  let base = if ref_path != "" {
+    let named = Named(names.get(ref_path).unwrap_or(ref_target(ref_path)))
+    if nullable_refs.get(ref_path).unwrap_or(false) {
+      Nullable(named)
+    } else {
+      named
     }
-    return Array(item_type)
-  }
-  if kind == "integer" {
+  } else if kind == "array" {
+    let items = get(schema, "items")
+    let item_type = map_schema(items, names~, nullable_refs~)
+    Array(item_type)
+  } else if kind == "integer" {
     let fmt = text(get(schema, "format"))
     if fmt == "int64" {
-      return Scalar("Int64")
+      Scalar("Int64")
+    } else {
+      Scalar("Int")
     }
-    return Scalar("Int")
+  } else if kind == "number" {
+    Scalar("Double")
+  } else if kind == "boolean" {
+    Scalar("Bool")
+  } else if kind == "any" || kind == "object" {
+    Scalar("Json")
+  } else {
+    Scalar("String")
   }
-  if kind == "number" {
-    return Scalar("Double")
+  if truth(get(schema, "nullable")) {
+    // A normalized `$ref` may carry the target component's nullable flag as
+    // well as the reference-site flag. Keep the wrapper idempotent so the IR
+    // records one wire-level nullability layer, not `Nullable(Nullable(T))`.
+    match base {
+      Nullable(_) => base
+      _ => Nullable(base)
+    }
+  } else {
+    base
   }
-  if kind == "boolean" {
-    return Scalar("Bool")
-  }
-  if kind == "any" || kind == "object" {
-    return Scalar("Json")
-  }
-  Scalar("String")
 }
 
 ///|
@@ -143,7 +153,10 @@ pub fn type_ref_to_json(t : TypeRef) -> Json {
       )
     Nullable(item) =>
       Json::object(
-        Map([("kind", Json::string("nullable")), ("item", type_ref_to_json(item))]),
+        Map([
+          ("kind", Json::string("nullable")),
+          ("item", type_ref_to_json(item)),
+        ]),
       )
   }
 }

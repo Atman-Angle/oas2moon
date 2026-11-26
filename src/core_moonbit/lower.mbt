@@ -121,9 +121,7 @@ fn parse_status(r : Json) -> Int32 {
   let mut n = 0
   for c in status_str {
     let ch = c.to_int()
-    if ch >= 48 && ch <= 57 {
-      n = n * 10 + ch - 48
-    }
+    n = n * 10 + ch - 48
   }
   n
 }
@@ -134,6 +132,7 @@ fn parse_model(
   schema_json : Json,
   model_name : String,
   names : Map[String, String],
+  nullable_refs : Map[String, Bool],
 ) -> ModelIr {
   let kind = text(get(schema_json, "kind"))
   if kind == "string" {
@@ -154,7 +153,12 @@ fn parse_model(
   // whose decoder only accepts a JSON object, so a legal array or primitive
   // wire value would fail to decode.
   if kind != "object" {
-    return AliasModel({ name: model_name, type_ref: map_schema(schema_json, names~), })
+    let mapped_type = map_schema(schema_json, names~, nullable_refs~)
+    let type_ref = match mapped_type {
+      Nullable(item) => item
+      value => value
+    }
+    return AliasModel({ name: model_name, type_ref, })
   }
   // Parse as struct
   let properties = obj(get(schema_json, "properties"))
@@ -177,12 +181,20 @@ fn parse_model(
     // The key came from this very map, so the indexed read cannot miss.
     let child_schema = properties[name]
     let is_req = required_set.contains(name)
-    let nullable = truth(get(child_schema, "nullable"))
+    let mapped_type = map_schema(child_schema, names~, nullable_refs~)
+    let nullable = truth(get(child_schema, "nullable")) ||
+      (match mapped_type {
+        Nullable(_) => true
+        _ => false
+      })
     let presence_val = compute_presence(is_req, nullable)
     let f = {
       name: unique(snake(name), taken_fields),
       wire_name: name,
-      type_ref: map_schema(child_schema, names~),
+      type_ref: match mapped_type {
+        Nullable(item) => item
+        value => value
+      },
       presence: presence_val,
     }
     if is_req {
@@ -213,6 +225,7 @@ fn parse_model(
 fn parse_operation(
   op_json : Json,
   names : Map[String, String],
+  nullable_refs : Map[String, Bool],
   taken_functions : Map[String, Bool],
   taken_types : Map[String, Bool],
 ) -> OperationIr {
@@ -229,7 +242,12 @@ fn parse_operation(
     let sc = get(p, "schema")
     let moon_name = unique(snake(p_name), taken_params)
     let required = truth(get(p, "required"))
-    let nullable = truth(get(sc, "nullable"))
+    let mapped_type = map_schema(sc, names~, nullable_refs~)
+    let nullable = truth(get(sc, "nullable")) ||
+      (match mapped_type {
+        Nullable(_) => true
+        _ => false
+      })
     let param = {
       name: moon_name,
       wire_name: p_name,
@@ -241,7 +259,10 @@ fn parse_operation(
         Null => parse_style(get(p, "style"), text(get(p, "in"))) == Form
         v => truth(v)
       },
-      type_ref: map_schema(sc, names~),
+      type_ref: match mapped_type {
+        Nullable(item) => item
+        value => value
+      },
       source: { pointer: "", },
     }
     if required {
@@ -266,7 +287,7 @@ fn parse_operation(
         _ => None
       }
       let body_type = match body_map.get("schema") {
-        Some(s) => Some(map_schema(s, names~))
+        Some(s) => Some(map_schema(s, names~, nullable_refs~))
         None => None
       }
       Some({ type_ref: body_type, required: body_req, media_type: body_media, })
@@ -290,7 +311,7 @@ fn parse_operation(
     let status = parse_status(r)
     let rtype = match get(r, "schema") {
       Null => None
-      x => Some(map_schema(x, names~))
+      x => Some(map_schema(x, names~, nullable_refs~))
     }
     let media = match get(r, "media_type") {
       Null => None
@@ -516,14 +537,13 @@ pub fn lower(root : Json, module_name : String) -> ApiIr {
   }
   for name in sorted_strings(scheme_names) {
     let scheme = obj(get(root, "securitySchemes"))[name]
-    let kind = if text(get(scheme, "type")) == "http" &&
-      text(get(scheme, "scheme")) == "bearer" {
-      "bearer"
-    } else if text(get(scheme, "type")) == "http" &&
-      text(get(scheme, "scheme")) == "basic" {
-      "basic"
+    let scheme_type = text(get(scheme, "type"))
+    let http_scheme = text(get(scheme, "scheme")).to_lower()
+    let kind = if scheme_type == "http" &&
+      (http_scheme == "bearer" || http_scheme == "basic") {
+      http_scheme
     } else {
-      text(get(scheme, "type"))
+      scheme_type
     }
     let location = match get(scheme, "in") {
       Null => None
@@ -545,16 +565,31 @@ pub fn lower(root : Json, module_name : String) -> ApiIr {
     schema_names.push(name)
   }
   let names : Map[String, String] = Map([])
+  let schemas_by_ref : Map[String, Json] = Map([])
   for schema_name in sorted_strings(schema_names) {
-    let model_name = unique(pascal(schema_name), taken_model_names)
-    names["#/components/schemas/" +
-    schema_name.replace(old="~", new="~0").replace(old="/", new="~1")] = model_name
+    let path = "#/components/schemas/" +
+      schema_name.replace(old="~", new="~0").replace(old="/", new="~1")
+    names[path] = unique(pascal(schema_name), taken_model_names)
+    schemas_by_ref[path] = get(get(root, "schemas"), schema_name)
   }
-  for schema_name in sorted_strings(schema_names) {
-    let schema = get(get(root, "schemas"), schema_name)
-    let model_name = names["#/components/schemas/" +
-      schema_name.replace(old="~", new="~0").replace(old="/", new="~1")]
-    models.push(parse_model(schema, model_name, names))
+  // Component declarations represent non-null values. Apply the target's
+  // nullability at each reference, including through transparent alias chains.
+  let nullable_refs : Map[String, Bool] = Map([])
+  for path, schema in schemas_by_ref {
+    let mut target = schema
+    while !truth(get(target, "nullable")) {
+      let reference = text(get(target, "ref"))
+      match schemas_by_ref.get(reference) {
+        Some(next) => target = next
+        None => break
+      }
+    }
+    if truth(get(target, "nullable")) {
+      nullable_refs[path] = true
+    }
+  }
+  for path, schema in schemas_by_ref {
+    models.push(parse_model(schema, names[path], names, nullable_refs))
   }
   let sorted_models = sort_models(models)
   // Operations
@@ -567,7 +602,9 @@ pub fn lower(root : Json, module_name : String) -> ApiIr {
   ])
   for op in sorted_ops {
     operations.push(
-      parse_operation(op, names, taken_functions, taken_model_names),
+      parse_operation(
+        op, names, nullable_refs, taken_functions, taken_model_names,
+      ),
     )
   }
   {

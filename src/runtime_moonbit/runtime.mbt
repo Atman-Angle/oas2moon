@@ -16,7 +16,7 @@ pub(all) suberror SdkError {
   Transport(String, String) // operation_id, message
   Http(
     String, // operation_id
-    Int, // status
+    Int32, // status
     Map[String, String], // response headers
     String
   ) // raw body
@@ -39,7 +39,7 @@ pub fn SdkError::transport(operation_id : String, message : String) -> SdkError 
 /// Convenience constructor for an HTTP error.
 pub fn SdkError::http(
   operation_id : String,
-  status : Int,
+  status : Int32,
   headers : Map[String, String],
   body : String,
 ) -> SdkError {
@@ -91,7 +91,7 @@ pub fn SdkError::operation_id(self : SdkError) -> String {
 
 ///|
 /// HTTP status code when this is an `Http` error, otherwise `0`.
-pub fn SdkError::status(self : SdkError) -> Int {
+pub fn SdkError::status(self : SdkError) -> Int32 {
   match self {
     Http(_, status, _, _) => status
     _ => 0
@@ -173,9 +173,9 @@ pub extend Request with @moonbitlang/core/debug.Debug::{to_repr}
 pub fn Request::new(
   http_method : String,
   path : String,
-  query? : Array[(String, String)] = [],
-  joined_query? : Array[(String, Array[String])] = [],
-  headers? : Map[String, String] = Map([]),
+  query~ : Array[(String, String)] = [],
+  joined_query~ : Array[(String, Array[String])] = [],
+  headers~ : Map[String, String] = Map([]),
   body? : String,
 ) -> Request {
   { http_method, path, query, joined_query, headers, body, }
@@ -209,7 +209,7 @@ pub fn Request::body(self : Request) -> String? {
 ///|
 /// A transport-neutral response.
 pub struct Response {
-  status : Int
+  status : Int32
   headers : Map[String, String]
   body : String
 } derive(Debug)
@@ -219,15 +219,15 @@ pub extend Response with @moonbitlang/core/debug.Debug::{to_repr}
 
 ///|
 pub fn Response::new(
-  status : Int,
-  headers? : Map[String, String] = Map([]),
-  body? : String = "",
+  status : Int32,
+  headers~ : Map[String, String] = Map([]),
+  body~ : String = "",
 ) -> Response {
   { status, headers, body, }
 }
 
 ///|
-pub fn Response::status(self : Response) -> Int {
+pub fn Response::status(self : Response) -> Int32 {
   self.status
 }
 
@@ -321,7 +321,7 @@ fn is_json_media_type(value : String) -> Bool {
 /// lossless for Int64 decoding instead of being rounded through a Double.
 pub fn response_json(
   response : Response,
-  operation_id? : String = "",
+  operation_id~ : String = "",
 ) -> Json raise SdkError {
   match response_content_type(response) {
     Some(media_type) =>
@@ -340,6 +340,117 @@ pub fn response_json(
 }
 
 ///|
+/// Convert a JSON number's original decimal/exponent spelling to an exact
+/// Int64 when its mathematical value is integral and within range.
+pub fn exact_int64_json_number(json : Json) -> Int64? {
+  match json {
+    Number(_, repr~) => {
+      let source = repr.unwrap_or(json.stringify())
+      match integer_number_lexeme(source) {
+        Some(value) =>
+          Some(@string.parse_int64(value) catch { _ => return None })
+        None => None
+      }
+    }
+    _ => None
+  }
+}
+
+///|
+fn integer_number_lexeme(source : String) -> String? {
+  let lower = source.to_lower()
+  let exponent_parts : Array[StringView] = []
+  for part in lower.split("e") {
+    exponent_parts.push(part)
+  }
+  if exponent_parts.length() > 2 {
+    return None
+  }
+  let mantissa_parts : Array[StringView] = []
+  for part in exponent_parts[0].split(".") {
+    mantissa_parts.push(part)
+  }
+  if mantissa_parts.length() > 2 {
+    return None
+  }
+  let whole = mantissa_parts[0]
+  let fraction = if mantissa_parts.length() == 2 {
+    mantissa_parts[1]
+  } else {
+    ""
+  }
+  if whole.length() == 0 ||
+    (mantissa_parts.length() == 2 && fraction.length() == 0) {
+    return None
+  }
+  let negative = whole[0] == '-'
+  let start = if whole[0] == '-' || whole[0] == '+' { 1 } else { 0 }
+  let digits = StringBuilder()
+  for index, ch in whole {
+    if index >= start {
+      if ch < '0' || ch > '9' {
+        return None
+      }
+      digits.write_char(ch)
+    }
+  }
+  for ch in fraction {
+    if ch < '0' || ch > '9' {
+      return None
+    }
+    digits.write_char(ch)
+  }
+  let all_digits = digits.to_string()
+  let mut first_nonzero = 0
+  while first_nonzero < all_digits.length() && all_digits[first_nonzero] == '0' {
+    first_nonzero = first_nonzero + 1
+  }
+  if first_nonzero == all_digits.length() {
+    return Some("0")
+  }
+  let exponent = if exponent_parts.length() == 2 {
+    @string.parse_int64(exponent_parts[1]) catch {
+      _ => return None
+    }
+  } else {
+    0L
+  }
+  let significant = all_digits[first_nonzero:].to_owned()
+  let fraction_length = fraction.length().to_int64()
+  let significant_length = significant.length().to_int64()
+  if exponent > fraction_length + 19L ||
+    exponent < fraction_length - significant_length {
+    return None
+  }
+  let integer_digits = if exponent >= fraction_length {
+    let zeros = (exponent - fraction_length).to_int()
+    if significant.length() + zeros > 19 {
+      return None
+    }
+    let out = StringBuilder()
+    out.write_string(significant)
+    for _ in 0..<zeros {
+      out.write_char('0')
+    }
+    out.to_string()
+  } else {
+    let scale = (fraction_length - exponent).to_int()
+    if scale >= significant.length() {
+      return None
+    }
+    let split = significant.length() - scale
+    for index = split; index < significant.length(); index = index + 1 {
+      if significant[index] != '0' {
+        return None
+      }
+    }
+    significant[:split].to_owned()
+  }
+  let signed = if negative { "-" + integer_digits } else { integer_digits }
+  Some(signed)
+}
+
+///|
 /// Decode a JSON response body into the target type.
 ///
 /// A declared JSON operation that receives an unexpected response media type
@@ -350,7 +461,7 @@ pub fn response_json(
 /// programmatically identify which operation failed.
 pub fn[T : FromJson] decode_json(
   response : Response,
-  operation_id? : String = "",
+  operation_id~ : String = "",
 ) -> T raise SdkError {
   let json = response_json(response, operation_id~)
   @json.from_json(json) catch {
@@ -367,24 +478,15 @@ pub fn[T : FromJson] decode_json(
 /// string, boolean, fraction, or out-of-range value fails explicitly.
 pub fn decode_int64(
   response : Response,
-  operation_id? : String = "",
+  operation_id~ : String = "",
 ) -> Int64 raise SdkError {
   let json = response_json(response, operation_id~)
-  match json {
-    Number(n, ..) => {
-      if n.is_nan() || n.is_inf() || n != n.trunc() {
-        raise Decode(operation_id, "expected an integer (JSON number)")
-      }
-      if n > 9007199254740991.0 || n < -9007199254740991.0 {
-        @string.parse_int64(json.stringify()) catch {
-          _ =>
-            raise Decode(operation_id, "integer value is out of range for Int64")
-        }
-      } else {
-        n.to_int64()
-      }
-    }
-    _ => raise Decode(operation_id, "expected an integer (JSON number)")
+  match exact_int64_json_number(json) {
+    Some(value) => value
+    None =>
+      raise Decode(
+        operation_id, "expected an integral JSON number within the Int64 range",
+      )
   }
 }
 
@@ -394,8 +496,8 @@ pub fn decode_int64(
 /// out-of-range value instead.
 pub fn decode_int(
   response : Response,
-  operation_id? : String = "",
-) -> Int raise SdkError {
+  operation_id~ : String = "",
+) -> Int32 raise SdkError {
   let json = response_json(response, operation_id~)
   match json {
     Number(n, ..) => {
@@ -417,7 +519,7 @@ pub fn decode_int(
 /// rejects any non-number and any non-finite value.
 pub fn decode_double(
   response : Response,
-  operation_id? : String = "",
+  operation_id~ : String = "",
 ) -> Double raise SdkError {
   let json = response_json(response, operation_id~)
   match json {
@@ -438,8 +540,8 @@ pub fn decode_double(
 /// body so callers can programmatically inspect the error response.
 pub fn expect_status(
   response : Response,
-  expected : Array[Int],
-  operation_id? : String = "",
+  expected : Array[Int32],
+  operation_id~ : String = "",
 ) -> Unit raise SdkError {
   if !expected.contains(response.status) {
     raise Http(operation_id, response.status, response.headers, response.body)
@@ -516,7 +618,7 @@ fn base64_encode(input : String) -> String {
 pub fn auth_headers(
   cfg : Config,
   requirements : Array[String],
-  operation_id? : String = "",
+  operation_id~ : String = "",
 ) -> Map[String, String] raise SdkError {
   let headers : Map[String, String] = Map([])
   for requirement in requirements {
@@ -599,7 +701,7 @@ pub fn auth_headers(
 pub fn auth_query(
   cfg : Config,
   requirements : Array[String],
-  operation_id? : String = "",
+  operation_id~ : String = "",
 ) -> Array[(String, String)] raise SdkError {
   let params : Array[(String, String)] = []
   for requirement in requirements {
@@ -642,7 +744,7 @@ pub fn auth_query(
 pub fn select_security(
   cfg : Config,
   alternatives : Array[Array[(String, String, String, String)]],
-  operation_id? : String = "",
+  operation_id~ : String = "",
 ) -> Array[String] raise SdkError {
   for group in alternatives {
     let requirements : Array[String] = []

@@ -126,6 +126,9 @@ fn needs_codec(type_ref : TypeRef) -> Bool {
 /// non-named types are returned unchanged. Alias chains cannot cycle because
 /// the core authority rejects cyclic references before lowering.
 fn resolve_type(type_ref : TypeRef, api : ApiIr) -> TypeRef {
+  if type_ref.item is Some(item) {
+    return { ..type_ref, item: Some(resolve_type(item, api)), }
+  }
   if type_ref.kind != "named" {
     return type_ref
   }
@@ -164,7 +167,8 @@ fn response_decode_expr(
     "decode_int(" + call + ")"
   } else if resolved.kind == "scalar" && resolved.name == Some("Double") {
     "decode_double(" + call + ")"
-  } else if resolved.kind == "array" && needs_codec(resolved) {
+  } else if resolved.kind == "nullable" ||
+    (resolved.kind == "array" && needs_codec(resolved)) {
     "(decode_json(" + call + ") : RespArr_" + codec_suffix(resolved) + ").value"
   } else {
     "(decode_json(" + call + ") : " + render_type(type_ref) + ")"
@@ -241,8 +245,11 @@ fn encode_expr(type_ref : TypeRef, value : String) -> String {
     "nullable" =>
       match type_ref.item {
         Some(item) =>
-          "(match " + value + " { None => Json::null(); Some(__opt_v) => " +
-          encode_expr(item, "__opt_v") + " })"
+          "(match " +
+          value +
+          " { None => Json::null(); Some(__opt_v) => " +
+          encode_expr(item, "__opt_v") +
+          " })"
         None => abort("validated nullable type is missing its item")
       }
     _ => abort("validated type has an unsupported kind")
@@ -263,21 +270,18 @@ fn decode_expr(type_ref : TypeRef, value : String, path : String) -> String {
     "named" => "@json.from_json(" + value + ", path=" + path + ")"
     "array" =>
       if needs_codec(type_ref) {
-        "__decode_" +
-        codec_suffix(type_ref) +
-        "(" +
-        value +
-        ", " +
-        path +
-        ")"
+        "__decode_" + codec_suffix(type_ref) + "(" + value + ", " + path + ")"
       } else {
         "@json.from_json(" + value + ", path=" + path + ")"
       }
     "nullable" =>
       match type_ref.item {
         Some(item) =>
-          "(match " + value + " { Null => None; _ => Some(" +
-          decode_expr(item, value, path) + ") })"
+          "(match " +
+          value +
+          " { Null => None; _ => Some(" +
+          decode_expr(item, value, path) +
+          ") })"
         None => abort("validated nullable type is missing its item")
       }
     _ => abort("validated type has an unsupported kind")
@@ -324,28 +328,127 @@ fn collect_array_codecs(
 fn emit_int64_helpers(out : StringBuilder, api : ApiIr) -> Unit {
   let uses_int64 = api_uses_int64(api)
   if uses_int64 {
-    line(out, "///|")
-    line(out, "fn __dec_i64(json : Json, path : JPath) -> Int64 raise JErr {")
+    line(
+      out,
+      (
+        #|///|
+        #|fn __integer_number_lexeme(source : String) -> String? {
+        #|  let lower = source.to_lower()
+        #|  let exponent_parts : Array[StringView] = []
+        #|  for part in lower.split("e") {
+        #|    exponent_parts.push(part)
+        #|  }
+        #|  if exponent_parts.length() > 2 {
+        #|    return None
+        #|  }
+        #|  let mantissa_parts : Array[StringView] = []
+        #|  for part in exponent_parts[0].split(".") {
+        #|    mantissa_parts.push(part)
+        #|  }
+        #|  if mantissa_parts.length() > 2 {
+        #|    return None
+        #|  }
+        #|  let whole = mantissa_parts[0]
+        #|  let fraction = if mantissa_parts.length() == 2 {
+        #|    mantissa_parts[1]
+        #|  } else {
+        #|    ""
+        #|  }
+        #|  if whole.length() == 0 ||
+        #|    (mantissa_parts.length() == 2 && fraction.length() == 0) {
+        #|    return None
+        #|  }
+        #|  let negative = whole[0] == '-'
+        #|  let start = if whole[0] == '-' || whole[0] == '+' { 1 } else { 0 }
+        #|  let digits = StringBuilder()
+        #|  for index, ch in whole {
+        #|    if index >= start {
+        #|      if ch < '0' || ch > '9' {
+        #|        return None
+        #|      }
+        #|      digits.write_char(ch)
+        #|    }
+        #|  }
+        #|  for ch in fraction {
+        #|    if ch < '0' || ch > '9' {
+        #|      return None
+        #|    }
+        #|    digits.write_char(ch)
+        #|  }
+        #|  let all_digits = digits.to_string()
+        #|  let mut first_nonzero = 0
+        #|  while first_nonzero < all_digits.length() && all_digits[first_nonzero] == '0' {
+        #|    first_nonzero = first_nonzero + 1
+        #|  }
+        #|  if first_nonzero == all_digits.length() {
+        #|    return Some("0")
+        #|  }
+        #|  let exponent = if exponent_parts.length() == 2 {
+        #|    @string.parse_int64(exponent_parts[1]) catch {
+        #|      _ => return None
+        #|    }
+        #|  } else {
+        #|    0L
+        #|  }
+        #|  let significant = all_digits[first_nonzero:].to_owned()
+        #|  let fraction_length = fraction.length().to_int64()
+        #|  let significant_length = significant.length().to_int64()
+        #|  if exponent > fraction_length + 19L ||
+        #|    exponent < fraction_length - significant_length {
+        #|    return None
+        #|  }
+        #|  let integer_digits = if exponent >= fraction_length {
+        #|    let zeros = (exponent - fraction_length).to_int()
+        #|    if significant.length() + zeros > 19 {
+        #|      return None
+        #|    }
+        #|    let out = StringBuilder()
+        #|    out.write_string(significant)
+        #|    for _ in 0..<zeros {
+        #|      out.write_char('0')
+        #|    }
+        #|    out.to_string()
+        #|  } else {
+        #|    let scale = (fraction_length - exponent).to_int()
+        #|    if scale >= significant.length() {
+        #|      return None
+        #|    }
+        #|    let split = significant.length() - scale
+        #|    for index = split; index < significant.length(); index = index + 1 {
+        #|      if significant[index] != '0' {
+        #|        return None
+        #|      }
+        #|    }
+        #|    significant[:split].to_owned()
+        #|  }
+        #|  let signed = if negative { "-" + integer_digits } else { integer_digits }
+        #|  Some(signed)
+        #|}
+        #|
+        #|///|
+      ),
+    )
+    line(out, "fn __exact_int64_json_number(json : Json) -> Int64? {")
     line(out, "  match json {")
-    line(out, "    Number(n, ..) => {")
-    line(out, "      if n.is_nan() || n.is_inf() || n != n.trunc() {")
+    line(out, "    Number(_, repr~) => {")
+    line(out, "      let source = repr.unwrap_or(json.stringify())")
+    line(out, "      match __integer_number_lexeme(source) {")
     line(
-      out, "        raise __error(path, \"expected an integer (JSON number)\")",
+      out, "        Some(value) => Some(@string.parse_int64(value) catch { _ => return None })",
     )
-    line(out, "      }")
-    line(out, "      // Beyond 2^53-1 a Double rounds; parse the preserved source text.")
-    line(out, "      if n > 9007199254740991.0 || n < -9007199254740991.0 {")
-    line(out, "        @string.parse_int64(json.stringify()) catch {")
-    line(
-      out, "          _ => raise __error(path, \"integer value is out of range for Int64\")",
-    )
-    line(out, "        }")
-    line(out, "      } else {")
-    line(out, "        n.to_int64()")
+    line(out, "        None => None")
     line(out, "      }")
     line(out, "    }")
+    line(out, "    _ => None")
+    line(out, "  }")
+    line(out, "}")
+    line(out, "")
+    line(out, "///|")
+    line(out, "fn __dec_i64(json : Json, path : JPath) -> Int64 raise JErr {")
+    line(out, "  match __exact_int64_json_number(json) {")
+    line(out, "    Some(value) => value")
     line(
-      out, "    _ => raise __error(path, \"expected an integer (JSON number)\")",
+      out, "    None => raise __error(path, \"expected an integral JSON number within the Int64 range\")",
     )
     line(out, "  }")
     line(out, "}")
@@ -363,9 +466,10 @@ fn emit_int64_helpers(out : StringBuilder, api : ApiIr) -> Unit {
       EnumModel(_) => ()
       StructModel(value) =>
         for field in value.fields {
-          collect_array_codecs(field.type_ref, seen, helpers)
+          collect_array_codecs(resolve_type(field.type_ref, api), seen, helpers)
         }
-      AliasModel(value) => collect_array_codecs(value.type_ref, seen, helpers)
+      AliasModel(value) =>
+        collect_array_codecs(resolve_type(value.type_ref, api), seen, helpers)
     }
   }
   // A top-level response whose resolved type is an array needing a custom
@@ -386,7 +490,8 @@ fn emit_int64_helpers(out : StringBuilder, api : ApiIr) -> Unit {
     }
     for tr in response_types {
       let resolved = resolve_type(tr, api)
-      if resolved.kind == "array" && needs_codec(resolved) {
+      if resolved.kind == "nullable" ||
+        (resolved.kind == "array" && needs_codec(resolved)) {
         collect_array_codecs(resolved, seen, helpers)
         let suffix = codec_suffix(resolved)
         if resp_seen.get(suffix) is None {
@@ -464,7 +569,7 @@ fn emit_int64_helpers(out : StringBuilder, api : ApiIr) -> Unit {
       out,
       "pub impl FromJson for " + wname + " with fn from_json(json, path) {",
     )
-    line(out, "  { value: __decode_" + suffix + "(json, path) }")
+    line(out, "  { value: " + decode_expr(type_ref, "json", "path") + " }")
     line(out, "}")
     emit_trait_extensions(out, wname, ["@moonbitlang/core/json.FromJson"])
     line(out, "")
@@ -700,7 +805,7 @@ fn emit_struct_constructor(out : StringBuilder, model : StructModelIr) -> Unit {
     None => ()
   }
   if names.length() == 0 {
-    line(out, "  { }")
+    line(out, "  " + model.name + "::{ }")
   } else {
     let mut inline = "{ "
     for index, name in names {
@@ -728,7 +833,11 @@ fn emit_struct_constructor(out : StringBuilder, model : StructModelIr) -> Unit {
 }
 
 ///|
-fn emit_struct_encoder(out : StringBuilder, model : StructModelIr) -> Unit {
+fn emit_struct_encoder(
+  out : StringBuilder,
+  model : StructModelIr,
+  api : ApiIr,
+) -> Unit {
   line(out, "///|")
   line(
     out,
@@ -739,6 +848,9 @@ fn emit_struct_encoder(out : StringBuilder, model : StructModelIr) -> Unit {
     ") -> Json {",
   )
   line(out, "  let __m : Map[String, Json] = Map([])")
+  if model.fields.length() == 0 && model.additional_properties_field is None {
+    line(out, "  let _ = self")
+  }
   for field in model.fields {
     let wire = quoted(field.wire_name)
     let mn = escape_moonbit(field.name)
@@ -750,7 +862,7 @@ fn emit_struct_encoder(out : StringBuilder, model : StructModelIr) -> Unit {
           "  __put(__m, " +
           wire +
           ", " +
-          encode_expr(field.type_ref, value) +
+          encode_expr(resolve_type(field.type_ref, api), value) +
           ")",
         )
       "required_nullable" => {
@@ -760,7 +872,7 @@ fn emit_struct_encoder(out : StringBuilder, model : StructModelIr) -> Unit {
           "    Some(value) => __put(__m, " +
           wire +
           ", " +
-          encode_expr(field.type_ref, "value") +
+          encode_expr(resolve_type(field.type_ref, api), "value") +
           ")",
         )
         line(out, "    None => __put(__m, " + wire + ", Json::null())")
@@ -773,7 +885,7 @@ fn emit_struct_encoder(out : StringBuilder, model : StructModelIr) -> Unit {
           "    Some(value) => __put(__m, " +
           wire +
           ", " +
-          encode_expr(field.type_ref, "value") +
+          encode_expr(resolve_type(field.type_ref, api), "value") +
           ")",
         )
         line(out, "    None => ()")
@@ -788,7 +900,7 @@ fn emit_struct_encoder(out : StringBuilder, model : StructModelIr) -> Unit {
           "    Value(value) => __put(__m, " +
           wire +
           ", " +
-          encode_expr(field.type_ref, "value") +
+          encode_expr(resolve_type(field.type_ref, api), "value") +
           ")",
         )
         line(out, "  }")
@@ -830,7 +942,8 @@ fn emit_declared_map(out : StringBuilder, model : StructModelIr) -> Unit {
 fn emit_field_decoder(
   out : StringBuilder,
   field : FieldIr,
-  index : Int,
+  index : Int32,
+  api : ApiIr,
 ) -> Unit {
   let field_name = "__f" + index.to_string()
   let path_name = "__p" + index.to_string()
@@ -849,7 +962,8 @@ fn emit_field_decoder(
       )
       line(
         out,
-        "    Some(value) => " + decode_expr(field.type_ref, "value", path_name),
+        "    Some(value) => " +
+        decode_expr(resolve_type(field.type_ref, api), "value", path_name),
       )
       line(
         out,
@@ -863,7 +977,7 @@ fn emit_field_decoder(
       line(
         out,
         "    Some(value) => Some(" +
-        decode_expr(field.type_ref, "value", path_name) +
+        decode_expr(resolve_type(field.type_ref, api), "value", path_name) +
         ")",
       )
       line(
@@ -883,7 +997,7 @@ fn emit_field_decoder(
       line(
         out,
         "    Some(value) => Some(" +
-        decode_expr(field.type_ref, "value", path_name) +
+        decode_expr(resolve_type(field.type_ref, api), "value", path_name) +
         ")",
       )
       line(out, "    None => None")
@@ -893,7 +1007,7 @@ fn emit_field_decoder(
       line(
         out,
         "    Some(value) => Value(" +
-        decode_expr(field.type_ref, "value", path_name) +
+        decode_expr(resolve_type(field.type_ref, api), "value", path_name) +
         ")",
       )
       line(out, "    None => Unset")
@@ -922,7 +1036,7 @@ fn emit_record_value(
     None => ()
   }
   if names.length() == 0 {
-    line(out, "  " + "{ }")
+    line(out, "  " + model.name + "::{ }")
   } else {
     let mut inline = "{ "
     for index, name in names {
@@ -945,7 +1059,11 @@ fn emit_record_value(
 }
 
 ///|
-fn emit_struct_decoder(out : StringBuilder, model : StructModelIr) -> Unit {
+fn emit_struct_decoder(
+  out : StringBuilder,
+  model : StructModelIr,
+  api : ApiIr,
+) -> Unit {
   line(out, "///|")
   line(
     out,
@@ -957,7 +1075,7 @@ fn emit_struct_decoder(out : StringBuilder, model : StructModelIr) -> Unit {
   line(out, "  }")
   emit_declared_map(out, model)
   for index, field in model.fields {
-    emit_field_decoder(out, field, index)
+    emit_field_decoder(out, field, index, api)
   }
   match model.additional_properties_field {
     Some(name) => {
@@ -984,14 +1102,11 @@ fn emit_struct_decoder(out : StringBuilder, model : StructModelIr) -> Unit {
 }
 
 ///|
-fn emit_struct(out : StringBuilder, model : StructModelIr) -> Unit {
+fn emit_struct(out : StringBuilder, model : StructModelIr, api : ApiIr) -> Unit {
   emit_struct_declaration(out, model)
-  if model.fields.length() == 0 && model.additional_properties_field is None {
-    return
-  }
   emit_struct_constructor(out, model)
-  emit_struct_encoder(out, model)
-  emit_struct_decoder(out, model)
+  emit_struct_encoder(out, model, api)
+  emit_struct_decoder(out, model, api)
 }
 
 ///|
@@ -1012,7 +1127,7 @@ fn emit_models(api : ApiIr) -> String {
   for model in api.models {
     match model {
       EnumModel(value) => emit_enum(out, value)
-      StructModel(value) => emit_struct(out, value)
+      StructModel(value) => emit_struct(out, value, api)
       AliasModel(value) => emit_alias(out, value)
     }
   }
@@ -1070,7 +1185,7 @@ fn pascal_from_snake(snake : String) -> String {
     if ch == '_' {
       upper_next = true
     } else if upper_next && ch >= 'a' && ch <= 'z' {
-      out.write_char(Int::unsafe_to_char(ch.to_int() - 32))
+      out.write_char(Int32::unsafe_to_char(ch.to_int() - 32))
       upper_next = false
     } else {
       out.write_char(ch)
@@ -1086,19 +1201,16 @@ fn response_enum_name(op : OperationIr) -> String {
 }
 
 ///|
-fn success_status_list(op : OperationIr) -> Array[Int] {
-  let out : Array[Int] = []
+fn success_status_list(op : OperationIr) -> Array[Int32] {
+  let out : Array[Int32] = []
   for r in op.success_responses {
     out.push(r.status)
-  }
-  if out.length() == 0 {
-    out.push(200)
   }
   out
 }
 
 ///|
-fn int_list_to_moon(ints : Array[Int]) -> String {
+fn int_list_to_moon(ints : Array[Int32]) -> String {
   let parts : Array[String] = []
   for n in ints {
     parts.push(n.to_string())
@@ -1111,7 +1223,7 @@ fn int_list_to_moon(ints : Array[Int]) -> String {
 // ---------------------------------------------------------------------------
 
 ///|
-fn build_path_expr(op : OperationIr) -> String {
+fn build_path_expr(op : OperationIr, api : ApiIr) -> String {
   let path = op.path
   let parts : Array[String] = []
   let mut buf = StringBuilder()
@@ -1130,22 +1242,30 @@ fn build_path_expr(op : OperationIr) -> String {
       in_brace = false
       let wire_name = brace_buf.to_string()
       let mut found = ""
+      let mut found_type : TypeRef? = None
       for p in op.parameters {
-        if p.wire_name == wire_name {
+        if p.location == PathLoc && p.wire_name == wire_name {
           found = escape_moonbit(p.name)
+          found_type = Some(resolve_type(p.type_ref, api))
         }
       }
       if found.length() > 0 {
-        let mut array = false
-        for p in op.parameters {
-          if p.wire_name == wire_name && p.type_ref.kind == "array" {
-            array = true
-          }
-        }
-        if array {
-          parts.push("encode_path_array(" + found + ".map(v => v.to_string()))")
+        let resolved = found_type.unwrap()
+        if resolved.kind == "array" {
+          let item = resolved.item.unwrap()
+          parts.push(
+            "encode_path_array(" +
+            found +
+            ".map(v => " +
+            parameter_scalar_wire(item, "v", api) +
+            "))",
+          )
         } else {
-          parts.push("encode_path_value(" + found + ".to_string())")
+          parts.push(
+            "encode_path_value(" +
+            parameter_scalar_wire(resolved, found, api) +
+            ")",
+          )
         }
       } else {
         parts.push(quoted("{" + wire_name + "}"))
@@ -1203,7 +1323,9 @@ fn emit_operation(out : StringBuilder, op : OperationIr, api : ApiIr) -> Unit {
       "required" =>
         param_lines.push("  " + mn + " : " + render_type(p.type_ref))
       "required_nullable" =>
-        param_lines.push("  " + mn + " : " + render_type(p.type_ref) + "?")
+        param_lines.push(
+          "  " + mn + " : Presence[" + render_type(p.type_ref) + "]",
+        )
       "optional" =>
         param_lines.push("  " + mn + "? : " + render_type(p.type_ref))
       "optional_nullable" =>
@@ -1292,7 +1414,7 @@ fn emit_operation(out : StringBuilder, op : OperationIr, api : ApiIr) -> Unit {
   }
   for p in op.parameters {
     if p.location is HeaderLoc {
-      emit_wire_parameter(out, p, false)
+      emit_wire_parameter(out, p, false, api, op.operation_id)
     }
   }
   if has_body {
@@ -1310,7 +1432,9 @@ fn emit_operation(out : StringBuilder, op : OperationIr, api : ApiIr) -> Unit {
     }
   }
   let has_joined_query = op.parameters.any(p => {
-    p.location == QueryLoc && p.type_ref.kind == "array" && !p.explode
+    p.location == QueryLoc &&
+    resolve_type(p.type_ref, api).kind == "array" &&
+    !p.explode
   })
   if has_joined_query {
     line(out, "  let joined_query : Array[(String, Array[String])] = []")
@@ -1320,7 +1444,7 @@ fn emit_operation(out : StringBuilder, op : OperationIr, api : ApiIr) -> Unit {
     line(out, "  let query : Array[(String, String)] = []")
     for p in op.parameters {
       if p.location is QueryLoc {
-        emit_wire_parameter(out, p, true)
+        emit_wire_parameter(out, p, true, api, op.operation_id)
       }
     }
   }
@@ -1339,7 +1463,7 @@ fn emit_operation(out : StringBuilder, op : OperationIr, api : ApiIr) -> Unit {
     line(out, "    query.push(pair)")
     line(out, "  }")
   }
-  let path_expr = build_path_expr(op)
+  let path_expr = build_path_expr(op, api)
   let http_method_str = quoted(op.http_method)
   // Determine if body is optional
   let sends_query = has_query || op.security.length() > 0
@@ -1569,10 +1693,7 @@ fn api_uses_int64(api : ApiIr) -> Bool {
             return true
           }
         }
-      AliasModel(value) =>
-        if contains_int64(value.type_ref) {
-          return true
-        }
+      AliasModel(value) => if contains_int64(value.type_ref) { return true }
     }
   }
   for op in api.operations {
@@ -1661,14 +1782,29 @@ fn emit_wire_parameter(
   out : StringBuilder,
   p : ParameterIr,
   query : Bool,
+  api : ApiIr,
+  operation_id : String,
 ) -> Unit {
   let mn = escape_moonbit(p.name)
-  let optional = p.presence != "required"
-  let value = if optional { "v" } else { mn }
-  if optional {
+  let optional = p.presence == "optional" || p.presence == "optional_nullable"
+  let nullable = p.presence == "required_nullable" ||
+    p.presence == "optional_nullable"
+  let resolved_type = resolve_type(p.type_ref, api)
+  let value = if optional || nullable { "v" } else { mn }
+  if optional || nullable {
     line(out, "  match " + mn + " {")
-    if p.presence == "optional_nullable" {
-      line(out, "    Unset | Null => ()")
+    if nullable {
+      if optional {
+        line(out, "    Unset => ()")
+      } else {
+        line(
+          out,
+          "    Unset => raise Configuration(" +
+          quoted(operation_id) +
+          ", \"required nullable parameter is unset\")",
+        )
+      }
+      line(out, "    Null => " + parameter_null_wire(p, query))
       line(out, "    Value(v) => {")
     } else {
       line(out, "    None => ()")
@@ -1676,7 +1812,7 @@ fn emit_wire_parameter(
     }
   }
   let wire = quoted(p.wire_name)
-  if query && p.type_ref.kind == "array" && p.explode {
+  if query && resolved_type.kind == "array" && p.explode {
     line(
       out,
       "    for item in " +
@@ -1684,10 +1820,10 @@ fn emit_wire_parameter(
       " { query.push((" +
       wire +
       ", " +
-      parameter_scalar_wire(p.type_ref.item.unwrap(), "item") +
+      parameter_scalar_wire(resolved_type.item.unwrap(), "item", api) +
       ")) }",
     )
-  } else if query && p.type_ref.kind == "array" {
+  } else if query && resolved_type.kind == "array" {
     line(
       out,
       "    joined_query.push((" +
@@ -1695,18 +1831,18 @@ fn emit_wire_parameter(
       ", " +
       value +
       ".map(item => " +
-      parameter_scalar_wire(p.type_ref.item.unwrap(), "item") +
+      parameter_scalar_wire(resolved_type.item.unwrap(), "item", api) +
       ")))",
     )
   } else {
-    let expr = if p.type_ref.kind == "array" {
+    let expr = if resolved_type.kind == "array" {
       "encode_header_array(" +
       value +
       ".map(item => " +
-      parameter_scalar_wire(p.type_ref.item.unwrap(), "item") +
+      parameter_scalar_wire(resolved_type.item.unwrap(), "item", api) +
       "))"
     } else {
-      parameter_scalar_wire(p.type_ref, value)
+      parameter_scalar_wire(resolved_type, value, api)
     }
     if query {
       line(out, "    query.push((" + wire + ", " + expr + "))")
@@ -1714,17 +1850,34 @@ fn emit_wire_parameter(
       line(out, "    headers[" + wire + "] = " + expr)
     }
   }
-  if optional {
+  if optional || nullable {
     line(out, "    }")
     line(out, "  }")
   }
 }
 
 ///|
-fn parameter_scalar_wire(type_ref : TypeRef, value : String) -> String {
-  if type_ref.kind == "named" {
+fn parameter_scalar_wire(
+  type_ref : TypeRef,
+  value : String,
+  api : ApiIr,
+) -> String {
+  let resolved = resolve_type(type_ref, api)
+  if resolved.kind == "named" {
     value + ".to_wire()"
+  } else if resolved.kind == "scalar" && resolved.name == Some("Json") {
+    value + ".stringify()"
   } else {
     value + ".to_string()"
+  }
+}
+
+///|
+fn parameter_null_wire(p : ParameterIr, query : Bool) -> String {
+  let wire = quoted(p.wire_name)
+  if query {
+    "query.push((" + wire + ", \"null\"))"
+  } else {
+    "headers[" + wire + "] = \"null\""
   }
 }
