@@ -25,3 +25,5 @@ Baseline evidence is available in the [hosted CI run](https://github.com/Atman-A
 | Mooncakes | Published frontend, core, runtime, codegen, then umbrella at `0.1.1`. A fresh consumer resolves the umbrella and prints version `0.1.1` and component count `4`. | `moon view --versions` shows `0.1.1` for all five modules; consumer `moon check` and `moon run cmd/main --target native` pass |
 
 Local candidate verification on 2026-11-27 used `moonc v1.0.0-rc1+3c0520448`. The full Python suite passed 126 tests, the real-world corpus compiled 5/5 specs and supported 12/12 operations, and the Petstore demo passed 11 checks, 19 HTTP assertions and 12 requests with byte-identical regeneration. Hosted Ubuntu/Windows CI against this branch is still pending.
+
+The Mooncakes 0.1.1 packages were published from [source commit `4bae49e62a0699992fcfcab4511c885ec7e6ad2f`](https://github.com/Atman-Angle/oas2moon/commit/4bae49e62a0699992fcfcab4511c885ec7e6ad2f) on `codex/acceptance-rc1`. The existing GitHub `v0.1.1` tag remains at baseline `d41950a`; it was not moved or overwritten. The commit link is the reproducible source for the Mooncakes 0.1.1 archive.

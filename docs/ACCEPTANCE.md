@@ -16,8 +16,9 @@ The bounded V1 scope is maintained against the current candidate commit. Hosted 
 | Bounded real-world corpus | `python tools/corpus_metrics.py --json-out tests/_build/corpus-metrics/summary.json --report-out docs/CORPUS_REPORT.md`; see [CORPUS_REPORT.md](CORPUS_REPORT.md) | 5/5 real-world specs compiled; 12/12 real-world operations supported; one expected control rejection |
 | Unsupported-feature diagnostics | negative `oneOf` fixtures and phase/CLI tests | Required; no silent fallback |
 
-Local verification of branch `codex/acceptance-rc1` on Windows completed on
-2026-11-27 with `moonc v1.0.0-rc1+3c0520448`. `python -m pytest tests -q`
+Local verification of branch `codex/acceptance-rc1` at commit
+`4bae49e62a0699992fcfcab4511c885ec7e6ad2f` completed on 2026-11-27 with
+`moonc v1.0.0-rc1+3c0520448`. `python -m pytest tests -q`
 passed 126 tests in 202.33 seconds. The Unicode-checkout CLI suite passed 10
 tests. Frontend, core, codegen and runtime passed `moon fmt --check` and native
 checks/builds; core passed 8 tests and runtime passed 34 tests. The bounded
@@ -25,9 +26,12 @@ corpus compiled 7/7 generated packages and 5/5 real-world specs, supporting
 12/12 real-world operations with one expected `oneOf` control rejection.
 Petstore E2E passed all 11 checks and 19 assertions, recorded 12 HTTP requests,
 and regenerated 9 files byte-identically. The Mooncakes 0.1.1 umbrella and four
-components were published, then resolved and exercised from a fresh consumer,
+components were published from the source snapshot at that commit, then resolved
+and exercised from a fresh consumer,
 which printed `0.1.1` and `4`. Hosted Ubuntu and Windows CI has not run against
 this branch candidate, so hosted cross-platform verification remains pending.
+The GitHub `v0.1.1` tag still points to the earlier baseline `d41950a` and was
+not rewritten; use the commit above to reproduce the package source.
 
 The hosted workflow is [cross-platform-ci.yml](../.github/workflows/cross-platform-ci.yml). It runs MoonBit formatting/checks, the core MoonBit test suite, determinism tests, `python -m pytest tests -q`, and the PowerShell Petstore HTTP demo on `ubuntu-latest` and `windows-latest`.
 

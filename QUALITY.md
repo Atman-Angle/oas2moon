@@ -8,7 +8,7 @@ claim full OpenAPI compatibility.
 
 - Mooncakes release: `0.1.1` bounded V1
 - GitHub: [Atman-Angle/oas2moon](https://github.com/Atman-Angle/oas2moon)
-- Acceptance candidate: local branch `codex/acceptance-rc1`, based on `d41950a`; hosted verification is pending
+- Acceptance candidate: [branch `codex/acceptance-rc1`, commit `4bae49e`](https://github.com/Atman-Angle/oas2moon/commit/4bae49e62a0699992fcfcab4511c885ec7e6ad2f); hosted verification is pending
 - Mooncakes: [Atman-Angle/oas2moon@0.1.1](https://mooncakes.io/docs/Atman-Angle/oas2moon)
 - License: [MIT](LICENSE)
 
@@ -29,6 +29,11 @@ claim full OpenAPI compatibility.
 ## Engineering evidence
 
 The latest baseline hosted run is [cross-platform-ci run 35318618356](https://github.com/Atman-Angle/oas2moon/actions/runs/35318618356), for commit `5187939dd78d8af2d0707db7bab3de58b10ab1fa`. It verifies the previous candidate, not the current branch changes. Hosted Ubuntu and Windows verification for `codex/acceptance-rc1` is pending. The current local evidence is:
+
+Mooncakes packages at version `0.1.1` were published from commit
+`4bae49e62a0699992fcfcab4511c885ec7e6ad2f`. The GitHub tag `v0.1.1` remains
+at the earlier baseline commit `d41950a`; the source link above identifies the
+published package snapshot.
 
 - MoonBit formatting, native checks, and package tests;
 - deterministic regeneration;
