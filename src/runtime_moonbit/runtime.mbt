@@ -12,19 +12,20 @@
 /// - Encode         — request serialization failed;
 /// - Configuration — invalid base URL or auth configuration;
 /// - Unsupported    — rejected OpenAPI semantic surfaced at runtime boundary.
+#derive(Debug)
 pub(all) suberror SdkError {
   Transport(String, String) // operation_id, message
   Http(
     String, // operation_id
     Int32, // status
     Map[String, String], // response headers
-    String
+    String,
   ) // raw body
   Decode(String, String) // operation_id, message
   Encode(String, String) // operation_id, message
   Configuration(String, String) // operation_id, message
   Unsupported(String, String) // operation_id, message
-} derive(Debug)
+}
 
 ///|
 pub extend SdkError with @moonbitlang/core/debug.Debug::{to_repr}
@@ -157,6 +158,7 @@ pub fn SdkError::to_string(self : SdkError) -> String {
 
 ///|
 /// A transport-neutral request.
+#derive(Debug)
 pub struct Request {
   http_method : String
   path : String
@@ -164,7 +166,7 @@ pub struct Request {
   joined_query : Array[(String, Array[String])]
   headers : Map[String, String]
   body : String?
-} derive(Debug)
+}
 
 ///|
 pub extend Request with @moonbitlang/core/debug.Debug::{to_repr}
@@ -208,11 +210,12 @@ pub fn Request::body(self : Request) -> String? {
 
 ///|
 /// A transport-neutral response.
+#derive(Debug)
 pub struct Response {
   status : Int32
   headers : Map[String, String]
   body : String
-} derive(Debug)
+}
 
 ///|
 pub extend Response with @moonbitlang/core/debug.Debug::{to_repr}
@@ -257,10 +260,11 @@ pub fn[T : Transport] send(
 
 ///|
 /// In-memory transport useful for deterministic unit tests.
+#derive(Debug)
 pub struct CaptureTransport {
   response : Response
   mut last_request : Request?
-} derive(Debug)
+}
 
 ///|
 pub extend CaptureTransport with @moonbitlang/core/debug.Debug::{to_repr}

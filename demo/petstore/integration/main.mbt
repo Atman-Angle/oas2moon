@@ -11,10 +11,11 @@
 
 ///|
 /// Collects assertion failures so one failing step does not hide the rest.
+#derive(Debug)
 struct Report {
   mut passed : Int
   failures : Array[String]
-} derive(Debug)
+}
 
 ///|
 fn Report::new() -> Report {

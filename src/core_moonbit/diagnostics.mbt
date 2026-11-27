@@ -5,13 +5,15 @@
 
 ///|
 /// Severity of a diagnostic.
+#derive(Eq, Debug)
 pub enum Severity {
   Error
   Warning
-} derive(Eq, Debug)
+}
 
 ///|
 /// A single diagnostic message.
+#derive(Eq, Debug)
 pub struct Diagnostic {
   code : String
   severity : Severity
@@ -19,7 +21,7 @@ pub struct Diagnostic {
   message : String
   operation_id : String?
   suggestion : String?
-} derive(Eq, Debug)
+}
 
 ///|
 /// Render a diagnostic as a human-readable string.

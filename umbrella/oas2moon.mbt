@@ -1,7 +1,7 @@
 ///|
 /// Return the version of the published oas2moon umbrella suite.
 pub fn version() -> String {
-  "0.1.0"
+  "0.1.1"
 }
 
 ///|

@@ -135,6 +135,28 @@ def test_success_yaml() -> None:
     assert (out_dir / "models.mbt").is_file()
 
 
+def test_non_ascii_input_and_output_paths_for_json_and_yaml(tmp_path: Path) -> None:
+    """Unicode paths are handled by the Python CLI boundary on Windows."""
+    for suffix in ("json", "yaml"):
+        input_path = tmp_path / f"输入-{suffix}.{suffix}"
+        output_dir = tmp_path / f"输出-{suffix}"
+        shutil.copyfile(
+            FIXTURES_DIR / "petstore" / f"openapi.{suffix}",
+            input_path,
+        )
+        result = run_cli(
+            "generate",
+            str(input_path),
+            "--module",
+            "petstore",
+            "--out",
+            str(output_dir),
+        )
+        assert result.returncode == 0, f"Unicode {suffix} generation failed:\n{result.stderr}"
+        assert moon_fmt_check(output_dir).returncode == 0
+        assert moon_check(output_dir).returncode == 0
+
+
 def test_unsupported_spec() -> None:
     """oneOf is unsupported; the CLI must reject before emission."""
     out_dir = _out("unsupported")
@@ -185,12 +207,11 @@ def test_work_dir_is_unique_and_cleaned() -> None:
         first = stack.enter_context(cli._work_dir())
         second = stack.enter_context(cli._work_dir())
         assert first != second, "every invocation must get its own scratch dir"
-        assert first.parent == second.parent, "scratch dirs share the _work parent"
-        assert first.name.startswith("generate-"), first.name
+        assert first.parent == second.parent, "scratch dirs share a temp parent"
+        assert str(first).isascii(), first
+        assert first.name.startswith("oas2moon-"), first.name
         assert first.is_dir() and second.is_dir()
-        # Still under the project tree, so MoonBit never sees a temp path with
-        # non-ASCII characters.
-        assert ROOT in first.parents, first
+        assert str(first.parent).isascii(), first.parent
         held = [first, second]
 
     for path in held:

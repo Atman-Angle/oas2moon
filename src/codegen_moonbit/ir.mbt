@@ -5,61 +5,70 @@
 /// copies them.
 
 ///|
+#derive(Eq, Debug)
 pub struct TypeRef {
   kind : String
   name : String?
   item : TypeRef?
-} derive(Eq, Debug)
+}
 
 ///|
+#derive(Eq, Debug)
 pub struct FieldIr {
   name : String
   wire_name : String
   type_ref : TypeRef
   presence : String
-} derive(Eq, Debug)
+}
 
 ///|
+#derive(Eq, Debug)
 pub struct EnumMemberIr {
   name : String
   wire : String
-} derive(Eq, Debug)
+}
 
 ///|
+#derive(Eq, Debug)
 pub struct EnumModelIr {
   name : String
   members : Array[EnumMemberIr]
-} derive(Eq, Debug)
+}
 
 ///|
+#derive(Eq, Debug)
 pub struct StructModelIr {
   name : String
   fields : Array[FieldIr]
   additional_properties : Bool
   additional_properties_field : String?
-} derive(Eq, Debug)
+}
 
 ///|
+#derive(Eq, Debug)
 pub enum ModelIr {
   EnumModel(EnumModelIr)
   StructModel(StructModelIr)
   AliasModel(AliasModelIr)
-} derive(Eq, Debug)
+}
 
 ///|
+#derive(Eq, Debug)
 pub struct AliasModelIr {
   name : String
   type_ref : TypeRef
-} derive(Eq, Debug)
+}
 
 ///|
+#derive(Eq, Debug)
 pub enum ParamLocation {
   PathLoc
   QueryLoc
   HeaderLoc
-} derive(Eq, Debug)
+}
 
 ///|
+#derive(Eq, Debug)
 pub struct ParameterIr {
   name : String
   wire_name : String
@@ -70,46 +79,52 @@ pub struct ParameterIr {
   presence : String
   style : String
   explode : Bool
-} derive(Eq, Debug)
+}
 
 ///|
+#derive(Eq, Debug)
 pub struct RequestBodyIr {
   type_ref : TypeRef?
   required : Bool
   media_type : String?
-} derive(Eq, Debug)
+}
 
 ///|
+#derive(Eq, Debug)
 pub struct ResponseIr {
   status : Int32
   type_ref : TypeRef?
   media_type : String?
-} derive(Eq, Debug)
+}
 
 ///|
+#derive(Eq, Debug)
 pub struct ResponseVariant {
   status : Int32
   type_ref : TypeRef
-} derive(Eq, Debug)
+}
 
 ///|
+#derive(Eq, Debug)
 pub enum ResponseStrategy {
   SingleResult(TypeRef)
   UnitResult
   ResponseEnum(Array[ResponseVariant])
   NoContent
   UnsupportedMediaType(String)
-} derive(Eq, Debug)
+}
 
 ///|
+#derive(Eq, Debug)
 pub struct AuthSchemeIr {
   name : String
   kind : String
   location : String?
   key_name : String?
-} derive(Eq, Debug)
+}
 
 ///|
+#derive(Eq, Debug)
 pub struct OperationIr {
   operation_id : String
   fn_name : String
@@ -125,9 +140,10 @@ pub struct OperationIr {
   response_strategy : ResponseStrategy
   security : Array[Array[String]]
   source_pointer : String
-} derive(Eq, Debug)
+}
 
 ///|
+#derive(Eq, Debug)
 pub struct ApiIr {
   module_name : String
   title : String
@@ -136,7 +152,7 @@ pub struct ApiIr {
   auth_schemes : Array[AuthSchemeIr]
   models : Array[ModelIr]
   operations : Array[OperationIr]
-} derive(Eq, Debug)
+}
 
 // ---------------------------------------------------------------------------
 // JSON helpers

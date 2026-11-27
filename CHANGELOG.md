@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.1 — contest acceptance hardening (2026-11-27)
+
+- Migrated runtime, IR, and generated MoonBit types to RC1 derive syntax.
+- Pinned hosted CI to `moonc v1.0.0-rc1+3c0520448`, made formatting checks non-mutating, and added a Unicode-checkout regression on Windows.
+- Ran MoonBit stages from a stable ASCII mirror with a cross-process build lock, preserving compiler caches while supporting Unicode checkout, input, and output paths.
+- Added the Apache-2.0 license text and corrected Petstore fixture provenance.
+- Updated the quick start and acceptance evidence to distinguish local candidate checks from pending hosted CI.
+- Published the four implementation modules and umbrella at Mooncakes version `0.1.1`.
+
 ## 0.1.0 — bounded V1 (2026-09-18)
 
 - Rewrote the README around the MoonBit-first authority boundary, runnable quick start, real HTTP demo, support limits, and hosted CI evidence.

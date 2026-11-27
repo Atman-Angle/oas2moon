@@ -24,14 +24,17 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import errno
+import hashlib
 import json
 import os
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
+import threading
 import time
-import uuid
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -44,6 +47,7 @@ _FRONTEND_DIR = _PROJECT_ROOT / "src" / "frontend_adapter"
 _CORE_DIR = _PROJECT_ROOT / "src" / "core_moonbit"
 _CODEGEN_DIR = _PROJECT_ROOT / "src" / "codegen_moonbit"
 _RUNTIME_DIR = _PROJECT_ROOT / "src" / "runtime_moonbit"
+_MOON_SOURCE_THREAD_LOCK = threading.Lock()
 
 _MBT_MODULE_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*(\/[a-zA-Z_][a-zA-Z0-9_]*)*$")
 
@@ -51,6 +55,68 @@ _MBT_MODULE_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*(\/[a-zA-Z_][a-zA-Z0-9_]*)*
 def _module_ok(name: str) -> bool:
     """Validate a MoonBit module name (e.g. ``petstore`` or ``oas2moon/petstore``)."""
     return bool(_MBT_MODULE_RE.match(name)) and "//" not in name
+
+
+def _ascii_temp_parent() -> Path:
+    """Return a writable temporary directory whose full path is ASCII."""
+    candidates = [Path(tempfile.gettempdir())]
+    if os.name == "nt":
+        candidates.append(Path(os.environ.get("WINDIR", r"C:\Windows")) / "Temp")
+
+    for root in candidates:
+        if not str(root).isascii():
+            continue
+        try:
+            root.mkdir(parents=True, exist_ok=True)
+            probe = Path(tempfile.mkdtemp(prefix="oas2moon-probe-", dir=root))
+            shutil.rmtree(probe)
+            return root
+        except OSError:
+            continue
+    raise OSError("could not find a writable ASCII-only temporary directory")
+
+
+def _moon_mirror_root() -> Path:
+    root_id = hashlib.sha256(str(_PROJECT_ROOT).encode("utf-8")).hexdigest()[:12]
+    return _ascii_temp_parent() / f"oas2moon-mirror-{root_id}"
+
+
+@contextlib.contextmanager
+def _moon_source_lock() -> Iterator[None]:
+    """Serialize mirror updates and MoonBit builds across threads/processes."""
+    with _MOON_SOURCE_THREAD_LOCK:
+        mirror_root = _moon_mirror_root()
+        mirror_root.mkdir(parents=True, exist_ok=True)
+        lock_path = mirror_root / ".build.lock"
+        with lock_path.open("a+b") as lock_file:
+            if os.name == "nt":
+                import msvcrt
+
+                if os.fstat(lock_file.fileno()).st_size == 0:
+                    lock_file.write(b"\0")
+                    lock_file.flush()
+                lock_file.seek(0)
+                while True:
+                    try:
+                        msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+                        break
+                    except OSError as exc:
+                        if exc.errno not in {errno.EACCES, errno.EDEADLK}:
+                            raise
+                        time.sleep(0.05)
+                try:
+                    yield
+                finally:
+                    lock_file.seek(0)
+                    msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+                try:
+                    yield
+                finally:
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
 def _run(cmd: list[str], cwd: str | Path, timeout: int = 120) -> subprocess.CompletedProcess:
@@ -77,7 +143,9 @@ def _run(cmd: list[str], cwd: str | Path, timeout: int = 120) -> subprocess.Comp
 def _moon_run(cwd: Path, *args: str, timeout: int = 120) -> subprocess.CompletedProcess:
     """Run the current MoonBit package at *cwd* with *args*."""
     cmd = ["moon", "run", ".", "--target", "native", "--", *args]
-    return _run(cmd, cwd, timeout=timeout)
+    with _moon_source_lock():
+        mirror = _sync_moon_package(cwd)
+        return _run(cmd, mirror, timeout=timeout)
 
 
 def _moon_fmt(cwd: Path) -> subprocess.CompletedProcess:
@@ -115,6 +183,64 @@ def _copy_runtime_files(out_dir: Path, include_operations: bool) -> None:
         src = _RUNTIME_DIR / name
         if src.is_file():
             shutil.copy2(str(src), str(out_dir / name))
+
+
+def _copy_generated_tree(stage_dir: Path, out_dir: Path) -> None:
+    """Copy a freshly generated SDK from an ASCII staging path.
+
+    MoonBit's native filesystem layer currently cannot reliably address
+    non-ASCII Windows paths.  The Python boundary owns the user-facing path,
+    so MoonBit writes to an ASCII temporary stage and Python copies the
+    resulting source tree to the requested destination.
+    """
+    for source in stage_dir.rglob("*"):
+        if not source.is_file():
+            continue
+        relative = source.relative_to(stage_dir)
+        if relative.parts[0] in {"_build", ".mooncakes"}:
+            continue
+        target = out_dir / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(str(source), str(target))
+
+
+def _sync_moon_package(source_dir: Path) -> Path:
+    """Sync source files to a stable ASCII mirror while preserving Moon caches."""
+    mirror = _moon_mirror_root() / source_dir.name
+    mirror.mkdir(parents=True, exist_ok=True)
+    manifest_path = mirror / ".oas2moon-source-manifest.json"
+
+    try:
+        previous = set(json.loads(manifest_path.read_text(encoding="utf-8")))
+    except (OSError, ValueError, TypeError):
+        previous = set()
+
+    source_files = []
+    for source in source_dir.rglob("*"):
+        relative = source.relative_to(source_dir)
+        if any(part in {".mooncakes", "_build", ".git"} for part in relative.parts):
+            continue
+        if source.is_file():
+            source_files.append((relative, source))
+
+    current = {relative.as_posix() for relative, _ in source_files}
+    for stale_name in previous - current:
+        stale = Path(stale_name)
+        if stale.is_absolute() or any(part in {"..", "."} for part in stale.parts):
+            continue
+        stale_path = mirror / stale
+        if stale_path.is_file():
+            stale_path.unlink()
+
+    for relative, source in source_files:
+        target = mirror / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(str(source), str(target))
+    manifest_path.write_text(
+        json.dumps(sorted(current), ensure_ascii=True) + "\n",
+        encoding="utf-8",
+    )
+    return mirror
 
 
 def _remove_stale_generated_files(out_dir: Path) -> None:
@@ -155,19 +281,16 @@ def _work_dir() -> Iterator[Path]:
 
     Two constraints shape this:
 
-    * the directory lives under the project tree rather than the system temp
-      directory, because MoonBit's filesystem library trips over the non-ASCII
-      characters that a user temp path can contain on Windows;
+    * the directory must have an ASCII path because MoonBit's native filesystem
+      layer cannot reliably address paths containing non-ASCII characters;
     * the name is unique per invocation, because a fixed path let concurrent
       ``generate`` runs overwrite each other's intermediate files.
 
     Cleanup is in a ``finally`` so an exception mid-pipeline cannot leave the
     scratch directory behind.
     """
-    root = _PROJECT_ROOT / "src" / "_work"
-    root.mkdir(parents=True, exist_ok=True)
-    path = root / f"generate-{os.getpid()}-{uuid.uuid4().hex[:12]}"
-    path.mkdir(parents=True, exist_ok=False)
+    path = Path(tempfile.mkdtemp(prefix="oas2moon-", dir=_ascii_temp_parent()))
+
     try:
         yield path
     finally:
@@ -199,7 +322,7 @@ def _write_moon_mod(out_dir: Path, module_name: str) -> None:
     content = (
         f'name = "{module_name}"\n'
         f'\n'
-        f'version = "0.1.0"\n'
+        f'version = "0.1.1"\n'
         f'\n'
         f'preferred_target = "native"\n'
     )
@@ -271,12 +394,17 @@ def cmd_generate(args: argparse.Namespace) -> int:
 
     with _work_dir() as work_dir:
 
+        # Keep every path and working directory handed to MoonBit ASCII-only.
+        # Python owns the user-facing paths and copies staged package sources.
+        staged_input = work_dir / ("input" + input_path.suffix.lower())
+        shutil.copyfile(str(input_path), str(staged_input))
         normalized_path = work_dir / "normalized.json"
         canonical_path = work_dir / "canonical.json"
+        staged_output = work_dir / "generated"
 
         # ── Step 1: Frontend adapter ────────────────────────────
         step = "frontend: parse OpenAPI → normalized model"
-        r1 = _moon_run(_FRONTEND_DIR, str(input_path), str(normalized_path))
+        r1 = _moon_run(_FRONTEND_DIR, str(staged_input), str(normalized_path))
         if r1.returncode != 0 or not normalized_path.is_file():
             detail = _fetch_output(r1)
             if detail:
@@ -318,8 +446,8 @@ def cmd_generate(args: argparse.Namespace) -> int:
 
         # ── Step 3: Codegen ─────────────────────────────────────
         step = "codegen: canonical IR → MoonBit SDK"
-        out_dir.mkdir(parents=True, exist_ok=True)
-        r3 = _moon_run(_CODEGEN_DIR, str(canonical_path), str(out_dir))
+        staged_output.mkdir(parents=True, exist_ok=True)
+        r3 = _moon_run(_CODEGEN_DIR, str(canonical_path), str(staged_output))
         if r3.returncode != 0:
             detail = _fetch_output(r3)
             if detail:
@@ -330,13 +458,13 @@ def cmd_generate(args: argparse.Namespace) -> int:
 
         # ── Step 4: Copy runtime files ──────────────────────────
         step = "runtime: copy runtime sources"
-        _copy_runtime_files(out_dir, include_operations=bool(api.get("operations")))
-        _ensure_string_import(out_dir)
+        _copy_runtime_files(staged_output, include_operations=bool(api.get("operations")))
+        _ensure_string_import(staged_output)
         print(_step_label(step, True), file=sys.stderr)
 
         # ── Step 5: moon fmt ────────────────────────────────────
         step = "moon fmt"
-        r4 = _moon_fmt(out_dir)
+        r4 = _moon_fmt(staged_output)
         if r4.returncode != 0:
             detail = _fetch_output(r4)
             if detail:
@@ -344,6 +472,9 @@ def cmd_generate(args: argparse.Namespace) -> int:
             print(_step_label(step, False), file=sys.stderr)
             return 5
         print(_step_label(step, True), file=sys.stderr)
+
+        out_dir.mkdir(parents=True, exist_ok=True)
+        _copy_generated_tree(staged_output, out_dir)
 
     # Leaving the block removed the scratch directory; only then is the
     # summary printed, so a failure never reports success.

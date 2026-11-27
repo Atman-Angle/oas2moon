@@ -7,56 +7,63 @@
 
 ///|
 /// Http method. Only the methods supported by V1 are listed.
+#derive(Eq, Debug, Hash)
 pub enum HttpMethod {
   Get
   Post
   Put
   Patch
   Delete
-} derive(Eq, Debug, Hash)
+}
 
 ///|
 /// Parameter location: path, query, or header.
+#derive(Eq, Debug, Hash)
 pub enum ParamLocation {
   Path
   Query
   Header
-} derive(Eq, Debug, Hash)
+}
 
 ///|
 /// Presence semantics for a field or parameter.
+#derive(Eq, Debug, Hash)
 pub enum Presence {
   Required
   RequiredNullable
   Optional
   OptionalNullable
-} derive(Eq, Debug, Hash)
+}
 
 ///|
 /// A MoonBit type reference in the IR.
+#derive(Eq, Debug, Hash)
 pub enum TypeRef {
   Scalar(String)
   Named(String)
   Array(TypeRef)
   Nullable(TypeRef)
-} derive(Eq, Debug, Hash)
+}
 
 ///|
 /// Source location as a JSON Pointer (RFC 6901).
+#derive(Eq, Debug)
 pub struct SourceLocation {
   pointer : String
-} derive(Eq, Debug)
+}
 
 ///|
 /// Serialization style for a parameter.
+#derive(Eq, Debug)
 pub enum SerializationStyle {
   Simple
   Form
   UnsupportedStyle(String)
-} derive(Eq, Debug)
+}
 
 ///|
 /// A single parameter in the Canonical IR.
+#derive(Eq, Debug)
 pub struct ParameterIr {
   name : String
   wire_name : String
@@ -67,36 +74,40 @@ pub struct ParameterIr {
   explode : Bool
   type_ref : TypeRef
   source : SourceLocation
-} derive(Eq, Debug)
+}
 
 ///|
 /// A request body in the Canonical IR.
+#derive(Eq, Debug)
 pub struct RequestBodyIr {
   type_ref : TypeRef?
   required : Bool
   media_type : String?
-} derive(Eq, Debug)
+}
 
 ///|
 /// A single response in the Canonical IR.
+#derive(Eq, Debug)
 pub struct ResponseIr {
   status : Int32
   type_ref : TypeRef?
   media_type : String?
-} derive(Eq, Debug)
+}
 
 ///|
 /// One variant in a response enum strategy.
+#derive(Eq, Debug)
 pub struct ResponseVariant {
   status : Int32
   type_ref : TypeRef
-} derive(Eq, Debug)
+}
 
 ///|
 /// Computed response strategy for an operation.
 ///
 /// Determined during lowering from the success_responses array.
 /// Codegen emitters read this to decide the operation's return type shape.
+#derive(Eq, Debug)
 pub enum ResponseStrategy {
   /// Single effective schema -> direct typed result (e.g. Pet)
   SingleResult(TypeRef)
@@ -108,19 +119,21 @@ pub enum ResponseStrategy {
   NoContent
   /// Unsupported media type - must not silently generate wrong wire code
   UnsupportedMediaType(String)
-} derive(Eq, Debug)
+}
 
 ///|
 /// Security scheme in the Canonical IR.
+#derive(Eq, Debug)
 pub struct AuthSchemeIr {
   name : String
   kind : String
   location : String?
   key_name : String?
-} derive(Eq, Debug)
+}
 
 ///|
 /// A single operation in the Canonical IR.
+#derive(Eq, Debug)
 pub struct OperationIr {
   operation_id : String
   fn_name : String
@@ -136,52 +149,58 @@ pub struct OperationIr {
   response_strategy : ResponseStrategy
   security : Array[Array[String]]
   source : SourceLocation
-} derive(Eq, Debug)
+}
 
 ///|
 /// A model in the Canonical IR: an enum, a struct, or a transparent type alias.
+#derive(Eq, Debug)
 pub enum ModelIr {
   EnumModel(EnumModelIr)
   StructModel(StructModelIr)
   AliasModel(AliasModelIr)
-} derive(Eq, Debug)
+}
 
 ///|
 /// A transparent type alias for a non-object component schema (array or
 /// primitive). It lowers to `type Name = T` so a legal wire value decodes
 /// through T's own codec instead of an empty struct.
+#derive(Eq, Debug)
 pub struct AliasModelIr {
   name : String
   type_ref : TypeRef
-} derive(Eq, Debug)
+}
 
 ///|
 /// An enum model.
+#derive(Eq, Debug)
 pub struct EnumModelIr {
   name : String
   members : Array[(String, String)]
-} derive(Eq, Debug)
+}
 
 ///|
 /// A struct model field.
+#derive(Eq, Debug)
 pub struct FieldIr {
   name : String
   wire_name : String
   type_ref : TypeRef
   presence : Presence
-} derive(Eq, Debug)
+}
 
 ///|
 /// A struct model.
+#derive(Eq, Debug)
 pub struct StructModelIr {
   name : String
   fields : Array[FieldIr]
   additional_properties : Bool
   additional_properties_field : String?
-} derive(Eq, Debug)
+}
 
 ///|
 /// The full Canonical Client IR for one API.
+#derive(Eq, Debug)
 pub struct ApiIr {
   module_name : String
   title : String
@@ -190,4 +209,4 @@ pub struct ApiIr {
   auth_schemes : Array[AuthSchemeIr]
   models : Array[ModelIr]
   operations : Array[OperationIr]
-} derive(Eq, Debug)
+}

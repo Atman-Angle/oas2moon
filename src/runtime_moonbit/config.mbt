@@ -1,5 +1,6 @@
 ///|
 /// Static configuration for one generated SDK client.
+#derive(Debug)
 pub struct Config {
   origin : String
   base_path : String
@@ -9,7 +10,7 @@ pub struct Config {
   api_key_name : String?
   api_key_value : String?
   api_key_location : String?
-} derive(Debug)
+}
 
 ///|
 pub extend Config with @moonbitlang/core/debug.Debug::{to_repr}
