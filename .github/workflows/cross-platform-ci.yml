@@ -59,7 +59,7 @@ jobs:
         run: |
           moon --version
           moonc -v
-          if ! moonc -v | grep -q '^moonc v1\.0\.0-rc1+3c0520448'; then exit 1; fi
+          if ! moonc -v | grep -q '^v1\.0\.0-rc1+3c0520448'; then exit 1; fi
           python --version
           pytest --version
           cc --version
@@ -70,7 +70,7 @@ jobs:
         run: |
           moon --version
           moonc -v
-          if ((moonc -v) -notmatch '^moonc v1\.0\.0-rc1\+3c0520448') { exit 1 }
+          if ((moonc -v) -notmatch '^v1\.0\.0-rc1\+3c0520448') { exit 1 }
           python --version
           pytest --version
           where.exe cl
