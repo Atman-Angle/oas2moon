@@ -12,11 +12,11 @@ The bounded V1 scope is maintained against the current candidate commit. Hosted 
 | Generated package format/check/test | `demo/petstore/run_demo.ps1`, steps 3–5 | Required; native target |
 | Real local HTTP integration | Demo steps 6–11; strict Python fixture server, generated MoonBit client | Required |
 | Deterministic regeneration | `tests/test_t13_determinism.py`; demo step 12 byte hashes | Required |
-| Ubuntu and Windows hosted verification | Candidate-commit workflow run required | Pending per candidate commit |
+| Ubuntu and Windows hosted verification | [Run 46003124284](https://github.com/Atman-Angle/oas2moon/actions/runs/46003124284), candidate commit `7524311a0069f48293775e1f28f106d453152d29` | Pass |
 | Bounded real-world corpus | `python tools/corpus_metrics.py --json-out tests/_build/corpus-metrics/summary.json --report-out docs/CORPUS_REPORT.md`; see [CORPUS_REPORT.md](CORPUS_REPORT.md) | 5/5 real-world specs compiled; 12/12 real-world operations supported; one expected control rejection |
 | Unsupported-feature diagnostics | negative `oneOf` fixtures and phase/CLI tests | Required; no silent fallback |
 
-Local verification of branch `codex/acceptance-rc1` at commit
+Local verification of branch `codex/acceptance-rc1` at source commit
 `4bae49e62a0699992fcfcab4511c885ec7e6ad2f` completed on 2026-11-27 with
 `moonc v1.0.0-rc1+3c0520448`. `python -m pytest tests -q`
 passed 126 tests in 202.33 seconds. The Unicode-checkout CLI suite passed 10
@@ -28,10 +28,7 @@ Petstore E2E passed all 11 checks and 19 assertions, recorded 12 HTTP requests,
 and regenerated 9 files byte-identically. The Mooncakes 0.1.1 umbrella and four
 components were published from the source snapshot at that commit, then resolved
 and exercised from a fresh consumer,
-which printed `0.1.1` and `4`. Hosted Ubuntu and Windows CI has not run against
-this branch candidate, so hosted cross-platform verification remains pending.
-The GitHub `v0.1.1` tag still points to the earlier baseline `d41950a` and was
-not rewritten; use the commit above to reproduce the package source.
+which printed `0.1.1` and `4`. Hosted run [46003124284](https://github.com/Atman-Angle/oas2moon/actions/runs/46003124284) passed both Ubuntu and Windows on commit `7524311a0069f48293775e1f28f106d453152d29`, including the Unicode-checkout suite. The GitHub `v0.1.1` tag still points to the earlier baseline `d41950a` and was not rewritten; use source commit `4bae49e62a0699992fcfcab4511c885ec7e6ad2f` to reproduce the Mooncakes package source.
 
 The hosted workflow is [cross-platform-ci.yml](../.github/workflows/cross-platform-ci.yml). It runs MoonBit formatting/checks, the core MoonBit test suite, determinism tests, `python -m pytest tests -q`, and the PowerShell Petstore HTTP demo on `ubuntu-latest` and `windows-latest`.
 
@@ -41,10 +38,10 @@ The hosted workflow is [cross-platform-ci.yml](../.github/workflows/cross-platfo
 |---|---|
 | Supported real inputs normalize correctly | Frontend/IR tests plus the committed corpus manifest and generated/compiled corpus report |
 | Generated packages compile | 7/7 generated corpus specs compile; real-world corpus `compile_pass=5/5` |
-| Generated clients send correct HTTP requests | Local Windows Petstore HTTP demo: `ALL PASS (11 checks)`, 19 e2e checks and 12 wire requests; hosted candidate run pending |
+| Generated clients send correct HTTP requests | Local and hosted Petstore HTTP demos: `ALL PASS (11 checks)`, 19 e2e checks and 12 wire requests |
 | Typed decoding works | Same generated-client HTTP demo, including CRUD, typed responses, 204, and structured errors |
 | Unsupported semantics fail explicitly | Expected `oneOf` control rejection with stable diagnostic `unsupported.keyword@#/components/schemas/Choice/oneOf` |
-| Deterministic regeneration passes | Local Python determinism tests and byte-identical 9-file comparison in the Petstore demo; hosted candidate run pending |
+| Deterministic regeneration passes | Local Python determinism tests and byte-identical 9-file comparison in the local and hosted Petstore demos |
 | Real-world coverage is measured and published | [CORPUS_REPORT.md](CORPUS_REPORT.md): 5/5 real-world specs compiled; 12/12 real-world operations supported; one expected control rejection |
 
 ## Reproduction commands
