@@ -22,14 +22,21 @@ Local verification of branch `codex/acceptance-rc1` at source commit
 passed 126 tests in 202.33 seconds. The Unicode-checkout CLI suite passed 10
 tests. Frontend, core, codegen and runtime passed `moon fmt --check` and native
 checks/builds; core passed 8 tests and runtime passed 34 tests. The bounded
-corpus compiled 6/6 generated packages and 4/5 real-world specs. The official
-OAI sample is rejected with a stable `unsupported.response_status` diagnostic
-because its operations declare unsupported `default` responses.
+corpus compiled 7/7 generated packages and 5/5 real-world specs, supporting
+12/12 real-world operations with one expected `oneOf` control rejection.
 Petstore E2E passed all 11 checks and 19 assertions, recorded 12 HTTP requests,
 and regenerated 9 files byte-identically. The Mooncakes 0.1.1 umbrella and four
 components were published from the source snapshot at that commit, then resolved
 and exercised from a fresh consumer,
 which printed `0.1.1` and `4`. Hosted run [46003124284](https://github.com/Atman-Angle/oas2moon/actions/runs/46003124284) passed both Ubuntu and Windows on commit `7524311a0069f48293775e1f28f106d453152d29`, including the Unicode-checkout suite. The GitHub `v0.1.1` tag still points to the earlier baseline `d41950a` and was not rewritten; use source commit `4bae49e62a0699992fcfcab4511c885ec7e6ad2f` to reproduce the Mooncakes package source.
+
+Local verification of candidate commit `4685320` on 2026-11-27 passed
+`python -m pytest tests -q` with 127 tests, core MoonBit checks with 8 tests,
+and the Petstore demo with all 11 checks. The corpus compiled 6/6 generated
+packages and 4/5 real-world specs. The official OAI sample was rejected with
+`unsupported.response_status` because its operations declare unsupported
+`default` responses. The Amap example generated and passed native format/check;
+its live request requires a user-provided Amap key and was not verified here.
 
 The hosted workflow is [cross-platform-ci.yml](../.github/workflows/cross-platform-ci.yml). It runs MoonBit formatting/checks, the core MoonBit test suite, determinism tests, `python -m pytest tests -q`, and the PowerShell Petstore HTTP demo on `ubuntu-latest` and `windows-latest`.
 
