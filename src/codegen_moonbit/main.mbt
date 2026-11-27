@@ -559,9 +559,10 @@ fn emit_int64_helpers(out : StringBuilder, api : ApiIr) -> Unit {
     let rendered = render_type(type_ref)
     let wname = "RespArr_" + suffix
     line(out, "///|")
+    line(out, "#derive(Eq, Debug)")
     line(out, "pub(all) struct " + wname + " {")
     line(out, "  value : " + rendered)
-    line(out, "} derive(Eq, Debug)")
+    line(out, "}")
     emit_trait_extensions(out, wname, ["Eq", "@moonbitlang/core/debug.Debug"])
     line(out, "")
     line(out, "///|")
@@ -590,11 +591,12 @@ fn emit_runtime_helpers(out : StringBuilder) -> Unit {
   line(out, "}")
   line(out, "")
   line(out, "///|")
+  line(out, "#derive(Eq, Debug)")
   line(out, "pub(all) enum Presence[T] {")
   line(out, "  Unset")
   line(out, "  Null")
   line(out, "  Value(T)")
-  line(out, "} derive(Eq, Debug)")
+  line(out, "}")
   emit_trait_extensions(out, "Presence", ["Eq", "@moonbitlang/core/debug.Debug"])
   line(out, "")
   line(out, "///|")
@@ -665,11 +667,12 @@ fn emit_trait_extensions(
 ///|
 fn emit_enum(out : StringBuilder, model : EnumModelIr) -> Unit {
   line(out, "///|")
+  line(out, "#derive(Eq, Debug)")
   line(out, "pub(all) enum " + model.name + " {")
   for enum_member in model.members {
     line(out, "  " + enum_member.name)
   }
-  line(out, "} derive(Eq, Debug)")
+  line(out, "}")
   emit_trait_extensions(out, model.name, ["Eq", "@moonbitlang/core/debug.Debug"])
   line(out, "")
   line(out, "///|")
@@ -729,6 +732,7 @@ fn emit_enum(out : StringBuilder, model : EnumModelIr) -> Unit {
 ///|
 fn emit_struct_declaration(out : StringBuilder, model : StructModelIr) -> Unit {
   line(out, "///|")
+  line(out, "#derive(Eq, Debug)")
   line(out, "pub(all) struct " + model.name + " {")
   for field in model.fields {
     let mn = escape_moonbit(field.name)
@@ -741,7 +745,7 @@ fn emit_struct_declaration(out : StringBuilder, model : StructModelIr) -> Unit {
     }
     None => ()
   }
-  line(out, "} derive(Eq, Debug)")
+  line(out, "}")
   emit_trait_extensions(out, model.name, ["Eq", "@moonbitlang/core/debug.Debug"])
   line(out, "")
 }
@@ -1140,7 +1144,7 @@ fn module_file(module_name : String, has_operations : Bool) -> String {
     quoted(module_name) +
     "\n" +
     "\n" +
-    "version = \"0.1.0\"\n"
+    "version = \"0.1.1\"\n"
   if has_operations {
     // Generated operations reach the network through the runtime transport,
     // which is built on moonbitlang/async/http.
@@ -1595,6 +1599,7 @@ fn emit_response_enums(out : StringBuilder, api : ApiIr) -> Unit {
       ResponseEnum(variants) => {
         let ename = response_enum_name(op)
         line(out, "///|")
+        line(out, "#derive(Debug)")
         line(out, "pub enum " + ename + " {")
         for v in variants {
           line(
@@ -1602,7 +1607,7 @@ fn emit_response_enums(out : StringBuilder, api : ApiIr) -> Unit {
             "  " + variant_name(v) + "(" + render_type(v.type_ref) + ")",
           )
         }
-        line(out, "} derive(Debug)")
+        line(out, "}")
         emit_trait_extensions(out, ename, ["@moonbitlang/core/debug.Debug"])
         line(out, "")
       }
@@ -1619,10 +1624,11 @@ fn emit_client(api : ApiIr) -> String {
   line(out, "")
   emit_response_enums(out, api)
   line(out, "///|")
+  line(out, "#derive(Debug)")
   line(out, "pub struct Client {")
   line(out, "  config : Config")
   line(out, "  capture : CaptureTransport?")
-  line(out, "} derive(Debug)")
+  line(out, "}")
   emit_trait_extensions(out, "Client", ["@moonbitlang/core/debug.Debug"])
   line(out, "")
   line(out, "///|")

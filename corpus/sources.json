@@ -60,16 +60,16 @@
       "kind": "local",
       "role": "real-world",
       "path": "fixtures/petstore/openapi.json",
-      "origin": "Swagger Petstore sample, trimmed to the V1 profile by this project",
-      "license": "Apache-2.0 (SPDX: Apache-2.0) source terms; project-trimmed fixture; see THIRD_PARTY_NOTICES.md"
+      "origin": "Project-authored minimal Petstore-shaped test input; no upstream sample text is redistributed",
+      "license": "Project-authored fixture; see THIRD_PARTY_NOTICES.md"
     },
     {
       "id": "petstore/openapi.yaml",
       "kind": "local",
       "role": "control",
       "path": "fixtures/petstore/openapi.yaml",
-      "origin": "same document as petstore/openapi.json, YAML encoding",
-      "license": "Apache-2.0 (SPDX: Apache-2.0) source terms; project-trimmed fixture; see THIRD_PARTY_NOTICES.md"
+      "origin": "YAML encoding of the project-authored petstore/openapi.json test input",
+      "license": "Project-authored fixture; see THIRD_PARTY_NOTICES.md"
     }
   ]
 }

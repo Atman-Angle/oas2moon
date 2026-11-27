@@ -22,7 +22,7 @@ Python's standard library is used for CLI orchestration and the fixture server; 
 | `fixtures/real-world/github-subset.json` | [github/rest-api-description](https://github.com/github/rest-api-description), commit `2c0db91ff57dc7d0670be941320e5f7d8daa17fd` | MIT | A small, curated subset of operation and schema facts; not the upstream repository |
 | `fixtures/real-world/openai-subset.json` | [openai/openai-openapi](https://github.com/openai/openai-openapi), commit `ac89e26b5fa142cf9e0c4be4e19c1858607835c1` | MIT | A small, curated subset of operation and schema facts; not the upstream repository |
 | `fixtures/real-world/oai-petstore-3.0.yaml` | [OAI/OpenAPI-Specification](https://github.com/OAI/OpenAPI-Specification), commit `c9f8f040e825a827bb011955bd41b7e2d899688f` | Apache-2.0 upstream; the sample itself declares MIT | The pinned archived sample, retained byte-for-byte |
-| `fixtures/petstore/openapi.json` and `.yaml` | Swagger Petstore sample, reduced and maintained as a project fixture | Apache-2.0 source terms | A project-trimmed test fixture, not a copy of the full upstream repository |
+| `fixtures/petstore/openapi.json` and `.yaml` | Project-authored minimal Petstore-shaped test fixture | Project-authored; no upstream text or license grant is claimed | Independently written test input; the separate archived OAI Petstore sample is tracked above |
 | `fixtures/real-world/jsonplaceholder-subset.json` | Project-authored compatibility fixture based on the public JSONPlaceholder API shape | No upstream code or license text is redistributed | Independently written operation/schema facts used only for generator coverage |
 
 ### MIT text for fixture subsets
@@ -58,11 +58,13 @@ SOFTWARE.
 
 ### Apache-2.0 text for fixture samples
 
-The OAI and Swagger Petstore entries are distributed under the Apache License,
-Version 2.0 where that upstream license applies. The canonical license text is
-available at <https://www.apache.org/licenses/LICENSE-2.0>. No NOTICE file was
-present in the pinned OAI sample; if an upstream NOTICE is added later, it must
-be copied here before updating the fixture.
+The archived OAI Petstore sample is distributed under the Apache License,
+Version 2.0 from its upstream repository. The canonical license text is
+included at [`third_party/licenses/Apache-2.0.txt`](third_party/licenses/Apache-2.0.txt)
+and was retrieved from <https://www.apache.org/licenses/LICENSE-2.0>. Its
+SHA-256 is `CFC7749B96F63BD31C3C42B5C471BF756814053E847C10F3EB003417BC523D30`.
+No NOTICE file was present in the pinned OAI sample. If an upstream NOTICE is
+added later, it must be copied here before updating the fixture.
 
 The project itself is distributed under the [MIT License](LICENSE). That MIT
 license covers only oas2moon-authored files.

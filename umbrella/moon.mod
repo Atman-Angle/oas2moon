@@ -1,6 +1,6 @@
 name = "Atman-Angle/oas2moon"
 
-version = "0.1.0"
+version = "0.1.1"
 
 readme = "README.md"
 
@@ -13,10 +13,10 @@ keywords = [ "openapi", "codegen", "moonbit", "sdk" ]
 description = "Umbrella entry point for the complete oas2moon MoonBit client SDK generator suite."
 
 import {
-  "Atman-Angle/oas2moon_frontend@0.1.0",
-  "Atman-Angle/oas2moon_core@0.1.0",
-  "Atman-Angle/oas2moon_codegen@0.1.0",
-  "Atman-Angle/oas2moon_runtime@0.1.0",
+  "Atman-Angle/oas2moon_frontend@0.1.1",
+  "Atman-Angle/oas2moon_core@0.1.1",
+  "Atman-Angle/oas2moon_codegen@0.1.1",
+  "Atman-Angle/oas2moon_runtime@0.1.1",
 }
 
 preferred_target = "native"

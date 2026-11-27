@@ -62,9 +62,11 @@ python oas2moon.py generate fixtures/petstore/openapi.json `
 Push-Location ./generated/petstore
 moon fmt --check
 moon check --target native --deny-warn
-moon test --target native --deny-warn
 Pop-Location
 ```
+
+The quick start verifies generation, formatting, and compilation. Run the
+Petstore demo to execute the generated-package tests and real HTTP checks.
 
 The generated `client.mbt` exposes typed async operation calls; required parameters are positional and optional parameters are labelled. To execute the same package against a strict real loopback HTTP server, run:
 
@@ -133,7 +135,7 @@ Known limits: the corpus is deliberately bounded to one full archived OAI Petsto
 - [Change log](CHANGELOG.md)
 - [Quality and acceptance evidence](docs/ACCEPTANCE.md)
 
-The current public release is `0.1.0`. The Mooncakes umbrella package and its four
+The current public release is `0.1.1`. The Mooncakes umbrella package and its four
 implementation packages are published under the `Atman-Angle` namespace. The
 release is intentionally a bounded V1: the supported profile and its limits are
 documented above and in [SUPPORTED_OPENAPI.md](docs/SUPPORTED_OPENAPI.md).

@@ -58,4 +58,4 @@ Open the workflow run for the candidate commit and verify `success` for both `Ve
 
 ## 4:30–5:00 — limits and next steps
 
-State the non-goals: no OpenAPI 3.1, external refs, unions/discriminator, multipart/XML, callbacks/webhooks, OAuth authorization flows, or arbitrary parameter styles. Unsupported input must diagnose rather than silently generate incorrect wire behaviour. The bounded corpus remains deliberately limited. The MoonBit implementation modules and umbrella package are published at version 0.1.0 under the `Atman-Angle` Mooncakes namespace; the CLI itself remains installed from the source repository.
+State the non-goals: no OpenAPI 3.1, external refs, unions/discriminator, multipart/XML, callbacks/webhooks, OAuth authorization flows, or arbitrary parameter styles. Unsupported input must diagnose rather than silently generate incorrect wire behaviour. The bounded corpus remains deliberately limited. The MoonBit implementation modules and umbrella package are published at version 0.1.1 under the `Atman-Angle` Mooncakes namespace; the CLI itself remains installed from the source repository.
