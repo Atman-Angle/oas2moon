@@ -44,15 +44,16 @@ fn validate_support(root : Json) -> Array[Diagnostic] {
         ),
       )
     }
-    let mut has_success = false
-    let mut default_pointer = ""
     for response in arr(get(op, "responses")) {
       let status = text(get(response, "status"))
-      if is_three_digit_status(status) && status >= "200" && status < "300" {
-        has_success = true
-      }
       if status == "default" {
-        default_pointer = operation_pointer + "/responses/default"
+        out.push(
+          error_diagnostic(
+            "unsupported.response_status",
+            operation_pointer + "/responses/default",
+            "Response status ranges and default responses are unsupported",
+          ),
+        )
       } else if !is_three_digit_status(status) ||
         status < "100" ||
         status > "599" {
@@ -64,13 +65,6 @@ fn validate_support(root : Json) -> Array[Diagnostic] {
           ),
         )
       }
-    }
-    if default_pointer != "" && !has_success {
-      out.push(
-        error_diagnostic(
-          "unsupported.response_status", default_pointer, "A default response is unsupported without an explicit 2xx response",
-        ),
-      )
     }
     for i, p in arr(get(op, "parameters")) {
       let loc = text(get(p, "in"))

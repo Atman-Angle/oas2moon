@@ -6,6 +6,8 @@ import hashlib
 import re
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 # sys.path moved to tests/reference_python
 
@@ -14,7 +16,6 @@ OUTPUT_ROOT = ROOT / "tests" / "_build" / "phase2-tests"
 CODEGEN_DIR = ROOT / "src" / "codegen_moonbit"
 
 SKIP_CHECK = os.environ.get("SKIP_MOON_CHECK", "0") == "1"
-
 
 def codegen(fixture: Path, out_dir: Path) -> None:
     # Clean existing files before generating
@@ -470,6 +471,7 @@ def write_test_file(pkg_dir: Path, fixture_name: str, data: dict) -> Path:
     return test_path
 
 
+@pytest.mark.skipif(SKIP_CHECK, reason="MoonBit checks are required for phase 2 acceptance coverage")
 def test_all_fixtures():
     fixtures = sorted(FIXTURES_DIR.glob("*.json"))
     assert len(fixtures) > 0, f"No fixtures found in {FIXTURES_DIR}"

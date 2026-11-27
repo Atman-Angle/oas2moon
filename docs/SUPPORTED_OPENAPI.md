@@ -27,7 +27,7 @@ This is a bounded OpenAPI 3.0.x profile, not a claim of full OpenAPI support. â€
 | Schema-valued `additionalProperties` | Preserved as `Map[String, Json]` to retain wire values. The declared value schema is not yet mapped to a typed map. |
 | JSON structured-suffix media types | Runtime response parsing accepts `+json` Content-Type values, but the generator accepts only declared `application/json` request/response content. Other declared media types are rejected with `unsupported.media_type`. |
 | HEAD transport mapping | Explicitly rejected by the V1 support validator. Runtime transport has a HEAD mapping for future use, but the public operation profile does not claim it. |
-| Bounded real-world corpus | Five local real-world specs compiled: official OAI Petstore 3.0 plus project Petstore and curated GitHub/OpenAI/JSONPlaceholder subsets. The measured 12/12 operation total is not a full-document support rate. |
+| Bounded real-world corpus | Four of five local real-world specs compile. The official OAI Petstore 3.0 sample is rejected because it declares unsupported `default` responses. The corpus does not establish a full-document support rate. |
 
 ## Explicitly unsupported
 
@@ -41,7 +41,7 @@ This is a bounded OpenAPI 3.0.x profile, not a claim of full OpenAPI support. â€
 - cookie parameters and arbitrary parameter serialization styles (including matrix, label and deepObject);
 - unclassified request/response media types.
 
-For unsupported semantics, generation must stop with a deterministic diagnostic; it must not silently emit wire behaviour known to be wrong. This includes unimplemented HTTP methods, response ranges, default-only responses, unsupported or unresolved security schemes, and authentication AND combinations that cannot be represented without overwriting headers. `Json` is a safe fallback only when the normalizer documents that actual wire behaviour is preserved. The `oneOf` negative fixture covers the no-silent-fallback rule.
+For unsupported semantics, generation must stop with a deterministic diagnostic; it must not silently emit wire behaviour known to be wrong. This includes unimplemented HTTP methods, response ranges, all `default` responses, unsupported or unresolved security schemes, and authentication AND combinations that cannot be represented without overwriting headers. `Json` is a safe fallback only when the normalizer documents that actual wire behaviour is preserved. The `oneOf` negative fixture covers the no-silent-fallback rule.
 
 ## Not verified or not promised
 
@@ -112,7 +112,7 @@ consumer regression in `tests/test_acceptance_regressions.py`:
   use the same generated encoder (`test_nullable_array_items`).
 
 The production acceptance audit also has regression coverage for unsupported
-methods, response ranges and default-only responses, unsupported and unresolved
+methods, response ranges and all default responses, unsupported and unresolved
 security schemes, escaped-name reference cycles, and generated parameter
 aliases. Top-level nullable responses and the complete runtime white-box suite
 are verified by the release acceptance run.

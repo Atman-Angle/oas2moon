@@ -16,6 +16,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import pytest
 import shutil
 import subprocess
 import sys
@@ -27,7 +28,6 @@ FIXTURES_DIR = ROOT / "fixtures"
 OUTPUT_ROOT = ROOT / "tests" / "_build" / "t10-cli"
 
 SKIP_CHECK = os.environ.get("SKIP_MOON_CHECK", "0") == "1"
-
 
 def load_cli_module():
     """Load the CLI by path without depending on the package import cache."""
@@ -275,11 +275,9 @@ def test_concurrent_generation_uses_distinct_scratch_dirs() -> None:
     assert leftovers == [], f"scratch directories leaked: {leftovers}"
 
 
+@pytest.mark.skipif(SKIP_CHECK, reason="MoonBit checks are required for compiled-output coverage")
 def test_compiled_output() -> None:
     """Generated package must pass moon fmt --check and moon check --deny-warn."""
-    if SKIP_CHECK:
-        return
-
     out_dir = _out("compiled")
     r = run_cli("generate", str(FIXTURES_DIR / "petstore" / "openapi.json"),
                 "--module", "petstore", "--out", str(out_dir))

@@ -1,0 +1,91 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Amap Weather API",
+    "version": "1.0.0",
+    "description": "Minimal read-only fixture for the Amap Web Service weather endpoint."
+  },
+  "servers": [
+    {
+      "url": "https://restapi.amap.com"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "AmapKey": {
+        "type": "apiKey",
+        "in": "query",
+        "name": "key"
+      }
+    },
+    "schemas": {
+      "WeatherLive": {
+        "type": "object",
+        "required": ["province", "city", "adcode", "weather", "temperature", "winddirection", "windpower", "humidity", "reporttime"],
+        "properties": {
+          "province": {"type": "string"},
+          "city": {"type": "string"},
+          "adcode": {"type": "string"},
+          "weather": {"type": "string"},
+          "temperature": {"type": "string"},
+          "winddirection": {"type": "string"},
+          "windpower": {"type": "string"},
+          "humidity": {"type": "string"},
+          "reporttime": {"type": "string"}
+        }
+      },
+      "WeatherResponse": {
+        "type": "object",
+        "required": ["status", "info", "infocode", "lives"],
+        "properties": {
+          "status": {"type": "string"},
+          "info": {"type": "string"},
+          "infocode": {"type": "string"},
+          "lives": {
+            "type": "array",
+            "items": {"$ref": "#/components/schemas/WeatherLive"}
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/v3/weather/weatherInfo": {
+      "get": {
+        "operationId": "getWeatherInfo",
+        "security": [{"AmapKey": []}],
+        "parameters": [
+          {
+            "name": "city",
+            "in": "query",
+            "required": true,
+            "schema": {"type": "string"},
+            "description": "City adcode, for example 110101 for Beijing."
+          },
+          {
+            "name": "extensions",
+            "in": "query",
+            "required": false,
+            "schema": {"type": "string", "default": "base"}
+          },
+          {
+            "name": "output",
+            "in": "query",
+            "required": false,
+            "schema": {"type": "string", "default": "JSON"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Weather response",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/WeatherResponse"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
