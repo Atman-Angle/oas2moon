@@ -187,7 +187,7 @@ jobs:
 
       - name: Validate corpus summary
         run: >-
-          python -c "import json, pathlib, sys; p=json.loads(pathlib.Path('tests/_build/corpus-metrics/summary.json').read_text(encoding='utf-8')); s=p['summary']['real_world']; total=s['specs_total']; valid=total > 0 and s['specs_generated'] == total and s['operations_supported'] == s['operations_total'] and s['operations_dropped'] == 0 and s['compile_pass'] == f'{total}/{total}'; sys.exit(0 if valid else 'Real-world corpus regression: ' + str(s))"
+          python -c "import json, pathlib, sys; p=json.loads(pathlib.Path('tests/_build/corpus-metrics/summary.json').read_text(encoding='utf-8')); s=p['summary']['real_world']; total=s['specs_total']; compiled=str(s['specs_generated']) + '/' + str(s['specs_generated']); valid=total > 0 and s['specs_generated'] + s['specs_rejected'] == total and s['specs_error'] == 0 and s['operations_dropped'] == 0 and s['compile_pass'] == compiled; sys.exit(0 if valid else 'Real-world corpus regression: ' + str(s))"
 
       - name: Run Petstore HTTP integration demo
         shell: pwsh

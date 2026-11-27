@@ -348,7 +348,7 @@ def test_spec_generation_is_byte_deterministic(spec: Path) -> None:
         "generate", str(spec), "--module", module, "--out", str(out_a),
         "--ir-out", str(ir_a),
     )
-    if spec.parent.name == "unsupported":
+    if spec.parent.name == "unsupported" or spec.name == "oai-petstore-3.0.yaml":
         second = run_cli("generate", str(spec), "--module", module, "--out", str(out_b))
         assert first.returncode == second.returncode == 4
         assert first.stderr == second.stderr

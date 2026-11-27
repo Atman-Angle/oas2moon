@@ -23,30 +23,30 @@ contributes 0 supported operations. Headline claims must come from the
 
 ```text
 specs_total            8
-specs_generated        7
-specs_rejected         1
+specs_generated        6
+specs_rejected         2
 specs_error            0
 specs_pending          0
 operations_total       17
-operations_supported   16
-operations_rejected    1
+operations_supported   13
+operations_rejected    4
 operations_dropped     0
-compile_pass           7/7
+compile_pass           6/6
 ```
 
 ### Real-world specs only
 
 ```text
 specs_total            5
-specs_generated        5
-specs_rejected         0
+specs_generated        4
+specs_rejected         1
 specs_error            0
 specs_pending          0
 operations_total       12
-operations_supported   12
-operations_rejected    0
+operations_supported   9
+operations_rejected    3
 operations_dropped     0
-compile_pass           5/5
+compile_pass           4/4
 ```
 
 ## Per spec
@@ -57,13 +57,14 @@ compile_pass           5/5
 | `control/unsupported-oneof.json` | control | rejected | 1 | 0 | 0 | n/a | unsupported.keyword@#/components/schemas/Choice/oneOf |
 | `github-rest/subset` | real-world | generated | 2 | 2 | 0 | pass | - |
 | `jsonplaceholder/subset` | real-world | generated | 2 | 2 | 0 | pass | - |
-| `oai/petstore-3.0` | real-world | generated | 3 | 3 | 0 | pass | - |
+| `oai/petstore-3.0` | real-world | rejected | 3 | 0 | 0 | n/a | cli.exit_4@input |
 | `openai/subset` | real-world | generated | 2 | 2 | 0 | pass | - |
 | `petstore/openapi.json` | real-world | generated | 3 | 3 | 0 | pass | - |
 | `petstore/openapi.yaml` | control | generated | 3 | 3 | 0 | pass | - |
 
 ## Rejection reasons
 
+- `cli.exit_4`: 1
 - `unsupported.keyword`: 1
 
 ## Pending sources

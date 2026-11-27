@@ -174,6 +174,7 @@ def test_json_media_and_valid_enum_still_generate():
         ("method-options", {"/x": {"options": {"operationId": "optionsX", "responses": {"204": {"description": "ok"}}}}}, None, "unsupported.method", "/options"),
         ("response-range", {"/x": {"get": op(responses={"2XX": json_response({"type": "string"})})}}, None, "unsupported.response_status", "/responses/2XX"),
         ("response-default-only", {"/x": {"get": op(responses={"default": json_response({"type": "string"})})}}, None, "unsupported.response_status", "/responses/default"),
+        ("response-default-with-success", {"/x": {"get": op(responses={"200": json_response({"type": "string"}), "default": json_response({"type": "string"})})}}, None, "unsupported.response_status", "/responses/default"),
         ("auth-cookie", {"/x": {"get": {**op(responses={"200": json_response({"type": "string"})}), "security": [{"CookieKey": []}]}}}, {"securitySchemes": {"CookieKey": {"type": "apiKey", "in": "cookie", "name": "sid"}}}, "unsupported.auth", "CookieKey"),
         ("auth-oauth", {"/x": {"get": {**op(responses={"200": json_response({"type": "string"})}), "security": [{"OAuth": []}]}}}, {"securitySchemes": {"OAuth": {"type": "oauth2", "flows": {}}}}, "unsupported.auth", "OAuth"),
         ("auth-missing", {"/x": {"get": {**op(responses={"200": json_response({"type": "string"})}), "security": [{"Typo": []}]}}}, None, "unsupported.auth", "Typo"),

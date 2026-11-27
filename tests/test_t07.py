@@ -18,6 +18,7 @@ import hashlib
 import threading
 import time
 import http.client
+import pytest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,6 +32,8 @@ FIXTURE_SERVER = ROOT / "tools" / "fixture_server.py"
 
 SKIP_CHECK = os.environ.get("SKIP_MOON_CHECK", "0") == "1"
 
+if SKIP_CHECK:
+    pytest.skip("MoonBit checks are required for T07 acceptance coverage", allow_module_level=True)
 
 def run(cmd, cwd=None):
     return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, encoding="utf-8")
@@ -372,6 +375,10 @@ def run_http_server_test():
 # ---------------------------------------------------------------------------
 
 def run_all():
+    if SKIP_CHECK:
+        print("SKIP_MOON_CHECK=1 cannot be used for T07 acceptance coverage")
+        return [("required MoonBit checks", False, "")]
+
     print("=" * 60)
     print("T07: CRUD and JSON Request Body")
     print("=" * 60)
@@ -450,21 +457,16 @@ def run_all():
             print(f"    {line}")
 
     # ---- Step 5: moon check ----
-    check_ok = True
-    if not SKIP_CHECK:
-        r = run(["moon", "check", "--target", "native"], cwd=str(gen))
-        check_ok = r.returncode == 0
-        results.append(("check", check_ok, ""))
-        check("moon check", check_ok)
-        if not check_ok:
-            for line in (r.stderr or "").splitlines()[:15]:
-                print(f"    {line}")
-    else:
-        print("  [SKIP] moon check")
-        results.append(("check", True, ""))
+    r = run(["moon", "check", "--target", "native"], cwd=str(gen))
+    check_ok = r.returncode == 0
+    results.append(("check", check_ok, ""))
+    check("moon check", check_ok)
+    if not check_ok:
+        for line in (r.stderr or "").splitlines()[:15]:
+            print(f"    {line}")
 
     # ---- Step 6: moon test ----
-    if check_ok and not SKIP_CHECK:
+    if check_ok:
         r = run(["moon", "test", "--target", "native"], cwd=str(gen))
         test_ok = r.returncode == 0
         results.append(("test", test_ok, ""))
@@ -475,7 +477,7 @@ def run_all():
                     print(f"    {line}")
     else:
         results.append(("test", True, ""))
-        print("  [SKIP] moon test")
+        print("  [SKIP] moon test because moon check failed")
 
     # ---- Step 7: Determinism ----
     gen2 = OUTPUT_ROOT / "generated2"

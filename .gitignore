@@ -59,6 +59,7 @@ corpus/_downloads/
 
 # Local-only development material (kept on disk, omitted from public Git)
 /AGENTS.md
+/local/
 /prompts/
 /docs/application/
 /src/README.md
